@@ -1,0 +1,75 @@
+/******************************************************************************************************************************
+ *
+ *	Summary: 
+ *
+ *	Jira 4390
+ *
+ *	Research Technology Management has deployed GPS 3.0, a new ‘one-stop’ solution to combine 
+ *	List Management features from Dashboard, Interaction Logging features from Client tracker 
+ *	and Predictive Analytics from Smart Lists. Currently, GPS 3.0 inherits the same Smart Emails tool
+ *	from Sales GPS 2.0 and Tech Management is starting a new initiative to enhance Smart Emails in GPS 3.0
+ *
+ *	Smart Emails are created in GPS and sent out using Blastmail Plant, as the delivery channel. Currently, 
+ *	Smart Emails sent out are displayed in ‘Sent Tailored Emails’ page. Users are not only able to search 
+ *	for Smart Emails sent out by them, but also check document readership (clicks) using ‘Sent Tailored Emails’ 
+ *	page. However, users are not able to repurpose the email content (forward and resend a Smart Email sent in the past). 
+ *	This enhancement will provide users the ability to repurpose the Smart Emails content		
+ *
+ *	This class will contain services for smart email.
+ *
+ *	29 April 2014	:		Amit T		:		Created
+ *	08 May 2014		:		Dinesh M	:		Search TODO, Added New webservice for ECI, ECRD, ERDI Update
+ *	12 May 2014		:		Dinesh M	:		Search TODO, Added New webservice for ECRD, ERDI Delete
+ *  02 JUN 2014		:       Dinesh M	:       Moved code in smartemailmanager class 
+ *  01 Aug 2014		:       Dinesh M	:       verify current user and Run as user
+ ********************************************************************************************************************************/
+
+
+@RestResource(urlMapping = '/SmartEmailContact/*')
+global class T1C_SmartEmailServices {	
+	Static Map<String, String> urlParameters = null;
+	Static String requestBody = '';
+	
+	@HTTPGET
+	
+	global static List<sObject> getRecords(){	
+		getURLParameters();		
+		return SmartEmailManager.servicesGETRequest(urlParameters);
+	}
+	
+	@HTTPPUT
+	
+	global static List<sObject> updateRecords(){	
+		getURLParameters();
+		return SmartEmailManager.servicesPUTRequest(urlParameters, requestBody);	
+	}
+	
+	@HTTPDELETE
+	
+	global static List<sObject> deleteRecords(){
+		getURLParameters();
+		return SmartEmailManager.servicesDELETERequest(urlParameters, requestBody);
+	}
+	
+	@HTTPPOST
+	
+	global static List<sObject> insertRecords(){
+		getURLParameters();
+		return SmartEmailManager.servicesPOSTRequest(urlParameters, requestBody);	
+	}
+	
+	static void getURLParameters(){
+		RestRequest req = RestContext.request;	
+		Restresponse res = RestContext.response;
+		
+		requestBody = req.requestBody.toString();
+		
+		SmartEmailUtil.addUserInResponseHeader(req, res);	
+				
+		urlParameters = new Map<String, String>();
+		
+		for(String currentKey : req.params.keySet()){
+			urlParameters.put(currentKey.toLowerCase(), req.params.get(currentKey));
+		}
+	}
+}
