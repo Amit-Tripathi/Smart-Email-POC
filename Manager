@@ -1,0 +1,651 @@
+/******************************************************************************************************************************
+ *	@File          : 	SmartEmailManager.cls
+ *	@Version       : 	V1.0.0
+ *	@Last changed  : 	01 Sep 2014
+ *	@Purpose       : 	Jira 4390
+ *
+ *  					Research Technology Management has deployed GPS 3.0, a new ‘one-stop’ solution to combine 
+ *  					List Management features from Dashboard, Interaction Logging features from Client tracker 
+ *  					and Predictive Analytics from Smart Lists. Currently, GPS 3.0 inherits the same Smart Emails tool
+ *  					from Sales GPS 2.0 and Tech Management is starting a new initiative to enhance Smart Emails in GPS 3.0
+ *
+ *  					Smart Emails are created in GPS and sent out using Blastmail Plant, as the delivery channel. Currently, 
+ *  					Smart Emails sent out are displayed in ‘Sent Tailored Emails’ page. Users are not only able to search 
+ *  					for Smart Emails sent out by them, but also check document readership (clicks) using ‘Sent Tailored Emails’ 
+ *  					page. However, users are not able to repurpose the email content (forward and resend a Smart Email sent in the past). 
+ *  					This enhancement will provide users the ability to repurpose the Smart Emails content       
+ *
+ *  					This class is the Manager method for smart email. All the bussiness logic will be included in this class
+ *	
+ *						Classes Involved in Smart Email Services:
+ *						1. T1C_SmartEmailServices
+ *						2. T1C_SmartEmailResearchDocServices
+ *						3. T1C_SmartEmailSentServices
+ *						4. T1C_SmartEmailPickLists
+ *						5. SmartEmailWrappers
+ *						6. SmartEmailUtil
+ *						7. SmartEmailManager
+ *						8. SmartEmailStartService
+ *						9. SentAndDraftBox
+ *						10. SmartEmailTestUtil
+ *						11. TestSmartEmailServices
+ *						12. New Field isDraft__c on ECI, Is_Added_in_Step2__c on ECRD
+ *						13. Created new Entry in SentBox Settings for picklist values
+ *						14. T1C_FunctionalRolePowerGroupMapSetting__c
+ *						15. Created custtom setting SmartEmailSettings__c for recommended search and specific research search limit
+ *						16. Created new field on ECRD Is_Added_in_Step2__c
+ *  					17. Created field Non_Sent_Recipients__c
+ *						18. Created Fields Currently_Selected_ECIs_c and Previously_Selected_ECIs_c on ECRD
+ *						19. UpdateSubjectIntroductionEmailCampaign Trigger
+ *						20. T1C_SmartEmailStart
+ *
+ *	@Author        : 	Capgemini Offshore (Amit T, Dinesh M)
+ *	@Copyright     : 	(c) Capgemini India Pvt. Ltd. 2014
+ *
+ *	@History	   :
+ *
+ *  02 June 2014   :       Dinesh M      :       Created
+ *  03 June 2014   :       Dinesh M      :       Included User Validation, Reset ECI rest services
+ *  04 June 2014   :       Dinesh M      :       Included SmartEmail Preview services
+ *  18 June 2014   :       Dinesh M      :       Queried ECRD seperatly to get RDM info in response while insertinf ECRD
+ *  24 June 2014   :       Dinesh M      :       Changed Search doc return type to SmartEmailWrappers.parentResearchDocWrapper 
+ *  08 July 2014   :       Dinesh M      :       Added isStep2 parameter in getECI method, now it will return sent ECI in step2
+ *  09 July 2014   :       Dinesh M      :       Updated URL parameter for update service, now we need to pass action parameter 
+ *												 As action=updateEC
+ *  10 July	2014   :       Dinesh M    	 :       Applied pagination in contact search
+ *  15 July	2014   :       Dinesh M    	 :       Created getWhyPopup and remove interest services
+ *  25 July	2014   :       Dinesh M    	 :       Removed Smart Email Start Services
+ *  04 Aug	2014   :       Dinesh M    	 :       Created new services for Resend Email
+ *  06 Aug	2014   :       Dinesh M    	 :       Updated createDefaultERDI Method
+ *  07 Aug	2014   :       Dinesh M    	 :       Converted Delete and search recommended services to POST method
+ *  21 Aug	2014   :       Dinesh M    	 :       Created New Method resetEmailCampaign
+ *  27 Aug	2014   :       Dinesh M    	 :       Added Pagination in contact search
+ *  01 SEP	2014   :       Dinesh M    	 :       Created New Method getUserDetails
+ *	04 Dec	2014   :	   Jaideep M	 :		 For the createDefaultERDI action, added code for accepting the docsstarratings parameter and passing it to the CreateDefaultERDI method
+ *	02 Feb	2015   :	   Dinesh M		 :		 Included epub research call for epub user
+ *	19 Feb	2015   :	   Dinesh M		 :		 QC-3275, Smart Email: Error pop-up is displayed on deleting a research document. 
+ *												 Updated delete service to delete 1000 records at a time
+ ********************************************************************************************************************************/
+
+
+public class SmartEmailManager{
+	//TODO: Length of URL is 2000 Char Max
+	Static Final String EC_OBJECT = 'EmailCampaign__c';
+	Static Final String ECRD_OBJECT = 'Email_Campaign_Research_Document__c';
+	Static Final String ERDI_OBJECT = 'Email_Research_Document_Item__c';
+	Static Final String ECI_OBJECT = 'Email_Campaign_Item__c';
+	Static String SMART_FILTER_SEARCH_TYPE = 'SmartFilterSearch';
+	Static Final String USER_OBJECT = 'User';
+	
+	Static Final String ECRD_GET = 'getECRD';
+	Static Final String ERDI_GET = 'getERDI';
+	Static Final String ECI_GET = 'getECI';
+	Static Final String EC_GET = 'getEC';
+	Static Final String USER_VALIDATION = 'validateuser';
+	Static Final String ECI_RESET = 'resetECI';
+	
+	Static Final String ECRD_INSERT = 'insertECRD';
+	Static Final String ERDI_INSERT = 'insertERDI';
+	Static Final String ECI_INSERT = 'insertECI';
+	Static Final String EC_INSERT = 'insertEC';
+	
+	Static Final String ECRD_UPDATE = 'updateECRD';
+	Static Final String ERDI_UPDATE = 'updateERDI';
+	Static Final String ECI_UPDATE = 'updateECI';
+	Static Final String EC_UPDATE = 'updateEC';
+	Static Final String ECI_Ticker_Update = 'updateTickerOnECI' ;
+	
+	Static Final String CLONE_EMAIL = 'cloneEmail';
+	Static Final String RESET_EMAIL = 'resetEmail';
+	Static Final String DELETE_RECORDS = 'deleteRecords';
+	Static Final String SAVE_AND_CONTINUE = 'SaveAndContinue';
+	Static Final String CREATE_DEFAULT_ERDI = 'createDefaultERDI';
+	Static Final String SEND_EMAIL = 'SendEmail';
+	Static Final String SMARTEMAIL_PREVIEW = 'SmartEmailPreview';
+	Static Final String GET_WHY_POPUP = 'getwhypopup';
+	Static Final String REMOVE_INTEREST = 'removeinterest';
+	Static Final String GET_USER_DETAIL = 'getUserDetail';
+	
+	Static Final String OBJECT_ID_PARAM = 'id';
+	Static Final String CURRENT_USER_SHORT_ID_PARAM = 'currentuser';
+	Static Final String ACTION_PARAM = 'action';
+	Static Final String SEARCH_PARAM = 'search';
+	
+	Static Final String RECOMMENDED_Picklist = 'GetRecommendedPickList';
+	Static Final String SPECIFIC_PICKLIST = 'GetSpecificPickList';
+	Static Final String SENT_EMAIL_PICKLIST = 'GetSentPickList';
+	Static Final String DRAFT_EMAIL_PICKLIST = 'GetDraftPickList';
+	Static Final String DELEGATOR_PICKLIST = 'GetDelegatorPickList';
+	
+	/**
+     * Method:
+     * servicesGETRequest
+     * 
+     * Summary:
+     * This method is used for get request for T1C_SmartEmailServices. It returns result in list of sObject
+     * 
+     * Parameters:
+     * @ Map<String, String> urlParameters
+     * 
+     * Return Type: 
+     * @ List<sObject>
+     */
+     
+	public static List<SObject> servicesGETRequest(Map<String, String> urlParameters){
+		//Keep parameter in lowercase
+		
+		//Contact Search
+		if(urlParameters.containsKey(SEARCH_PARAM)){
+			String searchTearm = urlParameters.get(SEARCH_PARAM);
+			String start = urlParameters.get('start');
+			String orderBy = urlParameters.get('orderby');
+			String orderDir = urlParameters.get('orderdir');
+			
+			return SmartEmailUtil.getContacts(searchTearm, start, orderBy, orderDir);	
+					
+		}else if(urlParameters.containsKey(ACTION_PARAM) && urlParameters.containsKey(OBJECT_ID_PARAM)){
+			String action = urlParameters.get(ACTION_PARAM);
+			String id = urlParameters.get(OBJECT_ID_PARAM);
+			
+			//Get ECRD by ID
+			if(action.equalsIgnoreCase(ECRD_GET )){
+				return SmartEmailUtil.getECRD(id);
+			
+			// Get ECI	
+			}else if(action.equalsIgnoreCase(ECI_GET)){
+				String isStep2 = urlParameters.get('isstep2');
+				
+				//Get ECI by EC	ID
+				if(SmartEmailUtil.getObjectAPIName(id).equalsIgnoreCase(EC_OBJECT)){
+					return SmartEmailUtil.getEmailCampaignItemsBYECID(id, isStep2);
+				
+				//Get ECI By ID	
+				}else if(SmartEmailUtil.getObjectAPIName(id).equalsIgnoreCase(ECI_OBJECT)){
+					return SmartEmailUtil.getEmailCampaignItemsByECIID(id);
+				
+				//Get ECI By ERDI ID	
+				}else if(SmartEmailUtil.getObjectAPIName(id).equalsIgnoreCase(ERDI_OBJECT)){
+					return SmartEmailUtil.getECIsbyERDI(id);
+				}
+			
+			//Get ERDI	
+			}else if(action.equalsIgnoreCase(ERDI_GET)){
+				String objectName = SmartEmailUtil.getObjectAPIName(id);
+				
+				//Get ERDI by ECI ID	
+				if(objectName.equalsIgnoreCase(ECI_OBJECT)){
+					return SmartEmailUtil.getERDI(new List<String>{id}, true);
+					
+				//Get ERDI by EC ID	
+				}else if(objectName.equalsIgnoreCase(EC_OBJECT)){
+					String ecrdID = urlParameters.get('ecrdid');
+					system.debug('id='+id+' ecrdID='+ecrdID);
+					return SmartEmailUtil.getAllERDIsByEC(id, ecrdID);
+				}
+			
+			//Get EC By ID	
+			}else if(action.equalsIgnoreCase(EC_GET)){
+				String userID = urlParameters.get('userid');
+				return SmartEmailUtil.getEmailCampaign(id, userID);
+			}
+			
+		}else if(urlParameters.containsKey(ACTION_PARAM) && urlParameters.containsKey(CURRENT_USER_SHORT_ID_PARAM)){
+			String action = urlParameters.get(ACTION_PARAM);
+			
+			//Validate User
+			if(action.equalsIgnoreCase(USER_VALIDATION)){
+				String currentUserShortID = urlParameters.get(CURRENT_USER_SHORT_ID_PARAM);
+				String runasUserShortID = urlParameters.get('runasuser');
+				
+				return SmartEmailUtil.getUserDetails(currentUserShortID, runasUserShortID);
+			}				
+		
+		}else if(urlParameters.containsKey(ACTION_PARAM)){
+			String action = urlParameters.get(ACTION_PARAM);
+			
+			// Get Why Popup
+			if(action.equalsIgnoreCase(GET_WHY_POPUP)){
+				String contactID = urlParameters.get('contactid');
+				String topicName = urlParameters.get('topicname');
+				
+				return SmartEmailUtil.getWhyPopUp(contactID, topicName);
+				
+			// Remove Interest 
+			}else if(action.equalsIgnoreCase(REMOVE_INTEREST)){
+				String contactID = urlParameters.get('contactid');
+				String topicId = urlParameters.get('topicid');
+				
+				T1C_InterestManager.removeInterest(topicId, contactID);
+				
+			// Resend/Clone Email
+			}else if(action.equalsIgnoreCase(CLONE_EMAIL)){
+				String campaignID = urlParameters.get('campaignid');
+				String eciID = urlParameters.get('eciid');
+				String isStep2 = urlParameters.get('issinglerecipient');
+
+				return SmartEmailUtil.cloneEmailCampaign(campaignID, eciID, isStep2);
+				
+			// Reset Email
+			}else if(action.equalsIgnoreCase(RESET_EMAIL)){
+				String campaignID = urlParameters.get('campaignid');
+
+				return SmartEmailUtil.resetEmailCampaign(campaignID);
+			
+			// Get User Details
+			}else if(action.equalsIgnoreCase(GET_USER_DETAIL)){
+				String userSalesforceID = urlParameters.get('usersfid');
+
+				return SmartEmailUtil.getUserDetails(userSalesforceID);
+			}			
+		}
+		
+		return null;
+	}
+	
+	/**
+     * Method:
+     * servicesPOSTRequest
+     * 
+     * Summary:
+     * This method is used for post request for T1C_SmartEmailServices. It returns result in list of sObject
+     * 
+     * Parameters:
+     * @ Map<String, String> urlParameters
+     * @ String requestBody
+     * 
+     * Return Type: 
+     * @ List<sObject>
+     */
+     
+	public static List<SObject> servicesPOSTRequest(Map<String, String> urlParameters, String requestBody){
+		//TODO: Assumed record will be coming with all fields		
+		List<sObject> recordsList = new List<sObject>();
+		
+		if(urlParameters.containsKey(ACTION_PARAM)){
+			String currentAction = urlParameters.get(ACTION_PARAM);
+			String emailCampaignId = urlParameters.get(OBJECT_ID_PARAM);
+			
+			//Insert EC			
+			if(currentAction.equalsIgnoreCase(EC_INSERT)){
+				recordsList = (List<sObject>)Json.deserialize(requestBody,List<EmailCampaign__c>.class);
+			
+			//Insert ECRD
+			}else if(currentAction.equalsIgnoreCase(ECRD_INSERT)){
+				
+				//We need RDM information also in response of ECRD insert, that's why we seperatly queried the ECRD
+
+				recordsList = (List<SObject>)Json.deserialize(requestBody,List<Email_Campaign_Research_Document__c>.class);
+				List<Email_Campaign_Research_Document__c> ecrdInsertedRecords = (List<Email_Campaign_Research_Document__c>)SmartEmailUtil.insertRecords(recordsList);
+					
+				return SmartEmailUtil.getECRDWithRDMInfo(ecrdInsertedRecords);
+					
+			//Insert ERDI
+			}else if(currentAction.equalsIgnoreCase(ERDI_INSERT)){
+				//We have queried the record after insert to get why recommended info
+				
+				recordsList = (List<sObject>)Json.deserialize(requestBody,List<Email_Research_Document_Item__c>.class);
+				List<Email_Research_Document_Item__c> insertedERDI = (List<Email_Research_Document_Item__c>)SmartEmailUtil.insertRecords(recordsList);
+				
+				List<String> erdiIDs = new List<String>();				
+				for(Email_Research_Document_Item__c currentERDI : insertedERDI){erdiIDs.add(currentERDI.Id);}
+				
+				return SmartEmailUtil.getERDI(erdiIDs, false);
+			
+			//Insert ECI
+			}else if(currentAction.equalsIgnoreCase(ECI_INSERT)){
+				recordsList = (List<sObject>)Json.deserialize(requestBody,List<Email_Campaign_Item__c>.class);
+			
+			//Save and Continue
+			}else if(currentAction.equalsIgnoreCase(SAVE_AND_CONTINUE)){
+				EmailCampaignWebservice.AddRecommendedDocuments(emailCampaignId);
+				EmailCampaignWebservice.AddSpecificDocuments(emailCampaignId);
+				//EmailCampaignWebservice.getRemainingDocCount(emailCampaignId);
+				
+				return SmartEmailUtil.getEmailCampaignItemsByECID(emailCampaignId, 'false');
+				
+			//Create Default ERDI	
+			}else if(currentAction.equalsIgnoreCase(CREATE_DEFAULT_ERDI)){				
+				String campaignID = urlParameters.get('campaignid');
+				String docStarRatings = urlParameters.get('docsstarratings');
+				String fromEmail = urlParameters.get('from') != null ? urlParameters.get('from') : '';
+				String region = urlParameters.get('region') != null ? urlParameters.get('region') : 'All';
+				String resultRange = urlParameters.get('result_range') != null ? urlParameters.get('result_range') : 'Last 24 Hours';
+								
+				List<List<SObject>> ecrdAndeciList = (List<List<SObject>>)Json.deserialize(requestBody,List<List<SObject>>.class);
+				return SmartEmailUtil.createDefaultERDI(ecrdAndeciList, campaignID, docStarRatings, region, resultRange, fromEmail);
+				
+			// Delete Records
+			}else if(currentAction.equalsIgnoreCase(DELETE_RECORDS)){				
+				List<String> objectIdList = (List<String>)Json.deserialize(requestBody,List<String>.class);
+				objectIdList.sort();
+				
+				List<String> splitIDs = new List<String>();
+				
+				Integer limitDML = 1500;
+				Integer count = 0;
+				
+				for(String currentID : objectIdList){
+					if(count == limitDML){
+						Database.delete((List<ID>)splitIDs, false);
+						splitIDs.clear();
+						splitIDs.add(currentID);
+						
+						count = 1;
+					}else{
+						splitIDs.add(currentID);
+					}
+					count ++;					
+				}
+				
+				Database.delete((List<ID>)splitIDs, false);
+				return null;
+			}
+		}		
+		
+		return SmartEmailUtil.insertRecords(recordsList);	
+	}
+	
+	/**
+     * Method:
+     * servicesPUTRequest
+     * 
+     * Summary:
+     * This method is used for put request for T1C_SmartEmailServices. It returns result in list of sObject
+     * 
+     * Parameters:
+     * @ Map<String, String> urlParameters
+     * @ String requestBody
+     * 
+     * Return Type: 
+     * @ List<sObject>
+     */
+     
+	public static List<SObject> servicesPUTRequest(Map<String, String> urlParameters, String requestBody){
+		//TODO: Assumed record will be coming with all fields		
+		List<sObject> recordsList = new List<sObject>();
+		
+		if(urlParameters.containsKey(ACTION_PARAM)){
+			String currentAction = urlParameters.get(ACTION_PARAM);
+			
+			//Update EC
+			if(currentAction.equalsIgnoreCase(EC_UPDATE)){
+				recordsList = (List<sObject>)Json.deserialize(requestBody,List<EmailCampaign__c>.class);
+
+			//Update ECRD			
+			}else if(currentAction.equalsIgnoreCase(ECRD_UPDATE)){
+				recordsList = (List<sObject>)Json.deserialize(requestBody,List<Email_Campaign_Research_Document__c>.class);
+
+			//Update ERDI
+			}else if(currentAction.equalsIgnoreCase(ERDI_UPDATE)){
+				recordsList = (List<sObject>)Json.deserialize(requestBody,List<Email_Research_Document_Item__c>.class);
+
+			//Update ECI
+			}else if(currentAction.equalsIgnoreCase(ECI_UPDATE)){
+				recordsList = (List<sObject>)Json.deserialize(requestBody,List<Email_Campaign_Item__c>.class);
+				system.debug('Deserialized records='+recordsList);	
+				
+			//Send Selected Emails
+			}else if(currentAction.equalsIgnoreCase(SEND_EMAIL)){
+				recordsList = (List<sObject>)Json.deserialize(requestBody,List<Email_Campaign_Item__c>.class);
+				return SmartEmailUtil.sendSelectedEmails((list<Email_Campaign_Item__c>)recordsList) ;
+			
+			//replace ticker with headline on ECI
+			}else if(currentAction.equalsIgnoreCase(ECI_Ticker_Update)){	
+				recordsList = (List<sObject>)Json.deserialize(requestBody,List<Email_Campaign_Item__c>.class);
+				return SmartEmailUtil.updateTicerPersonalizationECI((list<Email_Campaign_Item__c>)recordsList) ;			
+			}
+		}		
+		
+		return SmartEmailUtil.updateRecords(recordsList);	
+	}
+	
+	/**
+     * Method:
+     * servicesDELETERequest
+     * 
+     * Summary:
+     * This method is used for delete request for T1C_SmartEmailServices. It returns result in list of sObject
+     * 
+     * Parameters:
+     * @ Map<String, String> urlParameters
+     * @ String requestBody
+     * 
+     * Return Type: 
+     * @ List<sObject>
+     */
+     
+	public static List<SObject> servicesDELETERequest(Map<String, String> urlParameters, String requestBody){
+		//TODO: Assumed multiple id of same type will come at a time. DO we have any security issue here?? as this method can delete any object's record
+		List<sObject> recordsList = new List<sObject>();
+		
+		// Delete By passing ID in Param
+		if(urlParameters.containsKey(OBJECT_ID_PARAM)){
+			String objectIds = urlParameters.get(OBJECT_ID_PARAM);
+			
+			List<String> objectIdList = objectIds.split(',');
+			
+			Database.delete((List<ID>)objectIdList, false);
+			
+			//Delete Any Records
+			/*if(objectIdList != null && objectIdList.size() > 0){
+				String objectName = SmartEmailUtil.getObjectAPIName(objectIdList[0]);				
+				recordsList=Database.query('SELECT Id FROM '+objectName+' WHERE id IN :objectIdList');			
+			}*/
+		}	
+		
+		/*System.debug('RequestBody: ' + requestBody);
+		// Delete by passing List Of whole object in Request Body
+		if(requestBody != null && requestBody.trim().Length() > 0 ){
+			recordsList.addAll((List<sObject>)Json.deserialize(requestBody,List<SObject>.class));	
+		}*/
+		
+		return null;	
+	}
+	
+	/**
+     * Method:
+     * researchDocServicesGETRequest
+     * 
+     * Summary:
+     * This method is used for get request for T1C_SmartEmailResearchDocServices. It returns result in list of sObject
+     * 
+     * Parameters:
+     * @ Map<String, String> urlParameters
+     * 
+     * Return Type: 
+     * @ SmartEmailWrappers.parentResearchDocWrapper
+     */
+     
+	public static SmartEmailWrappers.parentResearchDocWrapper researchDocServicesGETRequest(Map<String, String> urlParameters){
+		List<String> recommendedResearchParameters = new List<String>{'result_range', 'region', 'stars', 'contactids' };
+		List<String> specificResearchParameters = new List<String>{'data_range', 'keyword', 'author', 'region', 'industry', 'document_type'};
+		
+		system.debug('url Params='+urlParameters);
+		
+		Boolean isRecommendedResearch = SmartEmailUtil.isAllParametersFound(recommendedResearchParameters, urlParameters);
+		Boolean isSpecificResearch = SmartEmailUtil.isAllParametersFound(specificResearchParameters, urlParameters);		
+		
+		String startParam = urlParameters.get('start');
+		
+		//Search Recommended Research Document
+		if(isRecommendedResearch){
+			String resultRange = urlParameters.get(recommendedResearchParameters[0]);
+			String region = urlParameters.get(recommendedResearchParameters[1]);
+			String stars = urlParameters.get(recommendedResearchParameters[2]);
+			List<String> contactIDs = urlParameters.get(recommendedResearchParameters[3]).split(',');
+			
+			return SmartEmailUtil.getRecommendedResearchs(resultRange, region, stars, contactIDs, startParam);			
+		
+		//Search Specific Research Documents	
+		}else if(isSpecificResearch){
+			String dateRange = urlParameters.get(specificResearchParameters[0]);
+			String keyword = urlParameters.get(specificResearchParameters[1]);
+			String author = urlParameters.get(specificResearchParameters[2]);
+			String region = urlParameters.get(specificResearchParameters[3]);
+			String industry = urlParameters.get(specificResearchParameters[4]);
+			String DocumentType = urlParameters.get(specificResearchParameters[5]);
+			
+			return SmartEmailUtil.getSpecificResearchs(dateRange, keyword, author, industry, DocumentType, region, startParam);
+		}
+		
+        return null;
+	}
+	
+	/**
+     * Method:
+     * researchDocServicesPOSTRequest
+     * 
+     * Summary:
+     * This method is used for get request for T1C_SmartEmailResearchDocServices. It returns result in list of sObject
+     * 
+     * Parameters:
+     * @ Map<String, String> urlParameters
+     * @ String requestBody
+     * 
+     * Return Type: 
+     * @ SmartEmailWrappers.parentResearchDocWrapper
+     */
+     
+	public static SmartEmailWrappers.parentResearchDocWrapper researchDocServicesPOSTRequest(Map<String, String> urlParameters, String requestBody){
+		
+		if(urlParameters.containsKey(ACTION_PARAM)){
+    		String action = urlParameters.get(ACTION_PARAM);
+    		
+    		if(action.equalsIgnoreCase('SearchRecommendedDoc')){
+    			String resultRange = urlParameters.get('result_range');
+				String region = urlParameters.get('region');
+				String stars = urlParameters.get('stars');
+				String startParam = urlParameters.get('start');
+				String emailAddress = urlParameters.get('from');
+				List<String> contactIDs = (List<String>)Json.deserialize(requestBody,List<String>.class);
+				
+				if(emailAddress != null && SmartEmailSettings__c.getValues('EpubEmailAddress') != null && EncodingUtil.urlDecode(emailAddress, 'UTF-8').equalsIgnoreCase(SmartEmailSettings__c.getValues('EpubEmailAddress').Value__c)){
+					return SmartEmailUtil.getRecommendedResearchs_EPUB(resultRange, region, stars, contactIDs, startParam);					
+				}else{
+					return SmartEmailUtil.getRecommendedResearchs(resultRange, region, stars, contactIDs, startParam);
+				}				
+    		}
+		}
+		
+        return null;
+	}
+	
+	/**
+     * Method:
+     * emailSentAndDraftServicesGETRequest
+     * 
+     * Summary:
+     * This method is used for get request for T1C_SmartEmailSentServices. It returns result in list of sObject
+     * 
+     * Parameters:
+     * @ Map<String, String> urlParameters
+     * 
+     * Return Type: 
+     * @ SmartEmailWrappers.SentBoxWrapper
+     */
+     
+	public static SmartEmailWrappers.SentBoxWrapper emailSentAndDraftServicesGETRequest(Map<String, String> urlParameters){  
+		//TODO: to keep url same we are checking draft parameter separately 
+		//List<String> eciParameters = new List<String>{'sent', 'from', 'to', 'account', 'subject', 'clicks', 'what_was_clicked', 'id', 'isdraft'};
+		List<String> eciParameters = new List<String>{'sent', 'from', 'to', 'account', 'subject', 'clicks', 'what_was_clicked', 'userid', 'sortby', 'sortdirection', 'start', 'recordslimit'};      
+        Boolean isECI = SmartEmailUtil.isAllParametersFound(eciParameters, urlParameters);
+        system.debug('urlParameters: ' + urlParameters);
+        
+		if(isECI){
+			String sent = urlParameters.get(eciParameters[0]);
+			String fromAddress = urlParameters.get(eciParameters[1]);
+			String toAddress = urlParameters.get(eciParameters[2]);
+			String account = urlParameters.get(eciParameters[3]);
+			String subject = urlParameters.get(eciParameters[4]);
+			String clicks = urlParameters.get(eciParameters[5]);
+			String what_was_clicked = urlParameters.get(eciParameters[6]);
+			String userID = urlParameters.get(eciParameters[7]);
+			String sortBy = urlParameters.get(eciParameters[8]);
+			String sortDirection = urlParameters.get(eciParameters[9]);
+			String startParam = urlParameters.get(eciParameters[10]);
+			String recordlimitParam = urlParameters.get(eciParameters[11]);
+			
+			String isDraft = urlParameters.get('isdraft');
+			
+			//Search Draft Emails
+			if(isDraft != null && isDraft.equalsIgnoreCase('true')){
+				return SmartEmailUtil.getDraftEmail(sent, sortBy, sortDirection, fromAddress, toAddress, account, subject, clicks, what_was_clicked, startParam, recordlimitParam, userID);
+				
+			//Search Sent Emails
+			}else{
+	            return SmartEmailUtil.getSentEmail(sent, sortBy, sortDirection, fromAddress, toAddress, account, subject, clicks, what_was_clicked, startParam, recordlimitParam, userID);			
+			}			
+        }
+        
+        return null;  
+	}
+	
+	/**
+     * Method:
+     * pickListGETRequest
+     * 
+     * Summary:
+     * This method is used for get request for T1C_SmartEmailPickLists. It returns result in list of sObject
+     * 
+     * Parameters:
+     * @ Map<String, String> urlParameters
+     * 
+     * Return Type: 
+     * @ SmartEmailWrappers.SentBoxWrapper
+     */
+     
+	public static List<SmartEmailWrappers.PickListWrapper> pickListGETRequest(Map<String, String> urlParameters){  
+		if(urlParameters.containsKey(ACTION_PARAM)){
+    		String action = urlParameters.get(ACTION_PARAM);
+    		
+    		//Get Recommended Research Picker Tab Picklist
+    		if(action.equalsIgnoreCase(RECOMMENDED_Picklist)){
+    			return SmartEmailUtil.getRecommendedPicklist();
+    			
+			//Get Specific Research Picker Tab Picklist
+    		}else if(action.equalsIgnoreCase(SPECIFIC_PICKLIST)){
+    			return SmartEmailUtil.getSpecificPicklist();
+    			
+			//Get Sent box Picklists
+    		}else if(action.equalsIgnoreCase(SENT_EMAIL_PICKLIST)){
+    			return SmartEmailUtil.getSentBoxPicklist();
+    			
+			//Get Draft box Picklists
+    		}else if(action.equalsIgnoreCase(DRAFT_EMAIL_PICKLIST)){
+    			return SmartEmailUtil.getDraftBoxPicklist();
+    		}
+    	} 
+    	
+    	return null; 
+	}
+	
+	/**
+     * Method:
+     * SmartEmailPreviewGETRequest
+     * 
+     * Summary:
+     * This method is used for get request for SmartEmailPreview in sent box which contains reader ship information. It returns result in list of sObject
+     * 
+     * Parameters:
+     * @ Map<String, String> urlParameters
+     * 
+     * Return Type: 
+     * @ SmartEmailWrappers.SmartEmailPreview
+     */
+     
+	public static SmartEmailWrappers.SmartEmailPreview SmartEmailPreviewGETRequest(Map<String, String> urlParameters){  
+		if (urlParameters.containsKey(ACTION_PARAM) && urlParameters.containsKey(OBJECT_ID_PARAM)){
+    		String action = urlParameters.get(ACTION_PARAM);
+    		
+    		/****PREVIEW EMAIL SERVICE COMMENTED****/
+    		if(action.equalsIgnoreCase(SMARTEMAIL_PREVIEW)){
+    			String currentUserID = urlParameters.get(OBJECT_ID_PARAM);
+    			
+    			return SmartEmailUtil.getSmartEmailPreview(currentUserID);
+    		}
+    	}
+    	
+    	return null; 
+	}
+
+}
