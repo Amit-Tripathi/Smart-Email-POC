@@ -1,0 +1,3518 @@
+/******************************************************************************************************************************
+ *
+ *  @File           :   SmartEmailUtil.cls
+ *  @Version        :   V1.0.0
+ *  @Last changed   :   17 Sep 2014
+ *  @Purpose        :   Jira 4390
+ *
+ *                      Research Technology Management has deployed GPS 3.0, a new ?one-stop? solution to combine 
+ *                      List Management features from Dashboard, Interaction Logging features from Client tracker 
+ *                      and Predictive Analytics from Smart Lists. Currently, GPS 3.0 inherits the same Smart Emails tool
+ *                      from Sales GPS 2.0 and Tech Management is starting a new initiative to enhance Smart Emails in GPS 3.0
+ *
+ *                      Smart Emails are created in GPS and sent out using Blastmail Plant, as the delivery channel. Currently, 
+ *                      Smart Emails sent out are displayed in ?Sent Tailored Emails? page. Users are not only able to search 
+ *                      for Smart Emails sent out by them, but also check document readership (clicks) using ?Sent Tailored Emails? 
+ *                      page. However, users are not able to repurpose the email content (forward and resend a Smart Email sent in the past). 
+ *                      This enhancement will provide users the ability to repurpose the Smart Emails content       
+ *
+ *                      This class is the utility method for smart email.
+ *
+ *  @Author         :   Capgemini Offshore (Amit T, Dinesh M)
+ *  @Copyright      :   (c) Capgemini India Pvt. Ltd. 2014
+ *
+ *  @History        :   
+ *
+ *  29 April 2014   :       Amit T      :       Created
+ *  30 April 2014   :       Dinesh M    :       Search TODO
+ *  29 May   2014   :       Dinesh M    :       Included Draft Email Method, User Validation Method
+ *  30 May   2014   :       Dinesh M    :       Included Delegator Method
+ *  03 JUN   2014   :       Dinesh M    :       Included Reset ECI Method
+ *  04 JUN   2014   :       Dinesh M    :       Included Readership Method
+ *  06 JUN   2014   :       Dinesh M    :       Updated user validation Method
+ *  12 JUN   2014   :       Dinesh M    :       Added Offset in getRecommendedResearchs and getSpecificResearchs
+ *  18 JUN   2014   :       Dinesh M    :       Added getECRDWithRDMInfo Method to get RDM information in ECRD
+ *  24 JUN   2014   :       Dinesh M    :       Implemented show more functionality in get recommended research, 
+ *                                              Keep limit 50 and 25, 
+ *                                              changed return type as SmartEmailWrappers.parentResearchDocWrapper
+ *  27 JUN   2014   :       Dinesh M    :       Change contact__r.Name to contact__r.Contact_Name__c
+ *  27 JUN   2014   :       Dinesh M    :       Created getWhyInfo, getERDIWithWhyInfo and getEmployee Method
+ *  08 Jul   2014   :       Dinesh M    :       Added isStep2 parameter in getECI method, now it will return sent ECI in step2 
+ *  09 Jul   2014   :       Dinesh M    :       Created field Non_Sent_Recipients__c, changed email__c to Prefer_Business_Email__c 
+ *  10 Jul   2014   :       Dinesh M    :       Applied pagination in contact search
+ *  14 Jul   2014   :       Dinesh M    :       Created new Method to saveAndContinue 
+ *                                              to Create ERDI on the basis of ECI and ECRD combination
+ *  15 Jul   2014   :       Dinesh M    :       Created New Method getWhyPopUp
+ *  17 Jul   2014   :       Dinesh M    :       Updated method saveAndContinue, delete old erdi before creating new erdi 
+ *  23 Jul   2014   :       Dinesh M    :       Added Personilasation information in getEmailCampaign
+ *  28 Jul   2014   :       Dinesh M    :       Added new parameter 'userID' in getEmailCampaign
+ *  01 Aug   2014   :       Dinesh M    :       Created new method addUserInResponseHeader
+ *  04 Aug   2014   :       Dinesh M    :       Created new method cloneEmailCampaign
+ *  06 Aug   2014   :       Dinesh M    :       Updated createDefaultERDI Method 
+ *  07 Aug   2014   :       Dinesh M    :       Updated getAllERDIsByEC, now service will return specific ERDI 
+ *                                              for current campaign and document. 
+ *                                              Updated getEmailCampaign Method, Now Method will accept User id from url parameter 
+ *  08 Aug   2014   :       Dinesh M    :       Created new method getUserTimeZone
+ *  08 Aug   2014   :       Dinesh M    :       Added first name and last name of delegator
+ *  18 Aug   2014   :       Dinesh M    :       Added new fields Is_Abstract_Modified__c, Is_Managed__c in ECRD
+ *  18 Aug   2014   :       Dinesh M    :       Updating ECRD on email send
+ *  19 Aug   2014   :       Dinesh M    :       Added User Salesforce ID in Response header 
+ *  21 Aug   2014   :       Dinesh M    :       Added duplicate check for ECI while cloning in cloneEmailCampaign
+ *  21 Aug   2014   :       Dinesh M    :       Created New Method resetEmailCampaign
+ *  22 Aug   2014   :       Dinesh M    :       QC: 2761, Updated Clone Email Campaign Service
+ *  25 Aug   2014   :       Dinesh M    :       Updated Method resetEmailCampaign
+ *  26 Aug   2014   :       Dinesh M    :       Created New field on Email campaign Is_Clone__c
+ *  27 Aug   2014   :       Dinesh M    :       Updated send selected email method for null introduction
+ *  27 Aug   2014   :       Dinesh M    :       Added Pagination in contact search
+ *  01 SEP   2014   :       Dinesh M    :       QC 2830, Updated cloneEmailCampaign
+ *  01 SEP   2014   :       Dinesh M    :       Created new field and added in response; ERDI_Sort_By__c and ECRD_Sort_By__c
+ *  01 SEP   2014   :       Dinesh M    :       QC 2809, Updated Clone Email Campaign Service 
+ *  01 SEP   2014   :       Dinesh M    :       Created New Method getUserDetails
+ *  02 SEP   2014   :       Dinesh M    :       Updated createDefaultERDI Method
+ *  03 SEP   2014   :       Dinesh M    :       QC, 2830 - Updated Clone Email Campaign service
+ *  03 SEP   2014   :       Dinesh M    :       QC, 2840 - Updated Get email preview service for erdi Ordering
+ *  03 SEP   2014   :       Dinesh M    :       QC, 2838 - Updated Clone Email Campaign Service 
+ *  04 SEP   2014   :       Dinesh M    :       Removed unUsed fields from SOQL Query
+ *  04 SEP   2014   :       Dinesh M    :       QC 2740, Created new field Is_single_user_workflow__c on Emailcampaign
+ *  04 SEP   2014   :       Dinesh M    :       QC 2841, Removed dup check on ECRD while cloning
+ *  04 SEP   2014   :       Dinesh M    :       QC 2850, Including attached doc for all the contact while cloning
+ *  05 SEP   2014   :       Jaideep M   :       QC 2776, Created new wrapper class implementing Comparable for sorting RDMs
+ *  05 SEP   2014   :       Jaideep M   :       QC 2841, 2843, 2791 updated clone email and reset service
+ *  05 SEP   2014   :       Dinesh M    :       QC 2862, Created new field to control trigger to reset ERDI
+ *  09 Sep   2014   :       Dinesh M    :       Updated order by condition in getERDI method
+ *  09 Sep   2014   :       Dinesh M    :       Optimizing code for reset and clone service
+ *  09 Sep   2014   :       Dinesh M    :       QC 2870, Included email signiture in delegator response
+ *  11 Sep   2014   :       Dinesh M    :       QC 2876, Truncating subject in EC and ECI
+ *  16 Sep   2014   :       Dinesh M    :       Providing ticker info with ERDI
+ *  17 Sep   2014   :       Dinesh M    :       Updated code to allow case insensitive personolisation
+ *  23 Sep   2014   :       Dinesh M    :       QC 2906, Fixed the code in getDynamicFilterCondition method
+ *  25 Sep   2014   :       Dinesh M    :       QC 2876, Crop the subject if it is exceeding char limit in step 2
+ *  01 Oct   2014   :       Dinesh M    :       QC 2925, Replaced Email_Signature_Text__c with Email_Signature__c 
+ *  01 Oct   2014   :       Dinesh M    :       QC 2921, Croped the subject if it is exceeding 255 char
+ *  08 Oct   2014   :       Dinesh M    :       QC 2856, Removed "to" and updated "subject" field for new contact in reset email method
+ *  10 Oct   2014   :       Dinesh M    :       QC 2920, checking the available rows limit before querying
+ *  10 Oct   2014   :       Dinesh M    :       QC 2856, Commented the changes in reset email service
+ *  10 Oct   2014   :       Dinesh M    :       QC 2947, Commented UpdateTicker service and included code in resetService
+ *  16 Oct   2014   :       Dinesh M    :       QC 2961, Created new method "createSmartFilterString" to get search filter string 
+ *  17 Oct   2014   :       Dinesh M    :       QC 2915, Updating clone service
+ *  24 Oct   2014   :       Jaideep M   :       QC 2973, Updated clone service
+ *  29 Oct   2014   :       Dinesh M    :       QC 2988, Returning null always as success flag for reset services
+ *  30 Oct   2014   :       Dinesh M    :       QC 3007, Updated Time zone for clone services
+ *  26 Nov   2014   :       Dinesh M    :       Fix for locking issue in smartemail.
+ *  27 Nov   2014   :       Dinesh M    :       Fix for GetECI issue, removed intro and footer
+ *  04 Dec   2014   :       Jaideep M   :       Made changes to the CreateDefaultERDI method to accept stars parameter and filter 
+ *                                              by stars while creating ERDIs
+ *  08 Dec   2014   :       Dinesh M    :       Logging the user short id in Error Logs.
+ *  09 Dec   2014   :       Dinesh M    :       Taking current logged in info from GPS-RunAs header param.
+ *  09 Dec   2014   :       Dinesh M    :       QC-3136, SE : Network Error on Add Contact at Step 1.
+ *  10 Dec   2014   :       Dinesh M    :       QC-2974, Updating personilized fields in reset Email service 
+ *  18 Dec   2014   :       Dinesh M    :       QC-3094, Random order in which contacts are listed in Step 2 of the Smart Email process.
+ *  05 Jan   2015   :       Dinesh M    :       Created New from Field on ECI, and picking value from this field.
+ *  14 Jan   2015   :       Dinesh M    :       QC 3186, Smart Email is accessible by unauthenticated user.
+ *  27 Jan   2015   :       Dinesh M    :       Removed the purge code in batch PurgeSmartEmailCampaign.
+ *  28 Jan   2015   :       Dinesh M    :       Providing error message in response
+ *  30 Jan   2015   :       Dinesh M    :       Reverted error message in response as we are not able to insert error log records
+ *  02 Feb   2015   :       Dinesh M    :       Created new method getRecommendedResearchs_EPUB for epub user
+ *  16 Feb   2015   :       Dinesh M    :       Providing error message in response
+ *  19 Feb   2015   :       Dinesh M    :       QC- 3269, Smart Email: 'Missing Subject Line' error message is displayed for user having Subject Line-regression
+ *												Updated Reset Service
+ *	20 FEB 2015     :       Dinesh M    :       Update CreateDefaultERDI method to attach only top 10 doc per contact
+ *	23 FEB 2015     :       Dinesh M    :       QC - 2856 Updated Clone and reset services
+ *	23 FEB 2015     :       Dinesh M    :       Allowing sys admin user to run as any user
+ *	25 FEB 2015     :       Dinesh M    :       QC - 2856 Reverted back to previous logic
+ *	25 FEB 2015     :       Dinesh M    :       Implemented Performance logger
+ *	26 FEB 2015     :       Dinesh M    :       QC - 3330, Resend - Document Sort order(single user or single user workflow) 
+ *	02 MAR  2015    :       Dinesh M    :       Resend:'An error occured while performing the search' is observed on searching records in Sent item window.
+ *	10 MAR  2015    :       Dinesh M    :       Fixed for mail: New Feedback on GPS Smartemail from Phil Griffith - Apostrophe isssue in keyword search
+ *	23 MAR  2015    :       Dinesh M    :       (QC 3292) SE:Error Message on returning back to step 1. Updated ResetEmail Service 
+ *	23 MAR  2015    :       Dinesh M    :       Update authentication logic to ignore functional role of user 
+ *	24 MAR  2015    :       SK		    :       CRMGPS:4486, Updated SendSelectedEmail Method 
+ *	15 APR  2015    :       Dinesh M    :       QC 3439, Smart Emails: Research Picker displaying incorrect search results for Special Characters '%' and '_'
+ *	28 APR  2015    :       Dinesh M    :       QC 3522, Smart Email: Format of the Resent Mail for the newly added contacts (added in Step 1) is incorrect.
+ *  24 NOV 	2015	:		Amit T		:		CRMGPS-4746	,In Contacts search service expose CIS ID field in response.
+ ********************************************************************************************************************************/
+
+public class SmartEmailUtil{     
+    private static Set<ID> searchTickerIds = new Set<ID>();
+    private static DateTime selectedDate = null;
+    private static Set<ID> autorRelatedResDocIds = new Set<ID>();
+    private static Set<ID> industryRelatedResDocIds = new Set<ID>();
+    private static Set<String> docTypes = new Set<String>();
+    private static Set<String> regionRelatedResDocIds = new Set<String>();
+    public static final String NORECOMMEDATIONTEXT = 'NO RESEARCH ATTACHED';
+    public static integer MAIL_LIMIT = 2500;
+    private static ID currentLoggedinUserID;
+    private static String currentLoggedinUserShortID;
+    private static String errorFormat = '<br /><br /><b>Message: {MESSAGE}</b><br /><br /><lable><b>Detail: </b>{STACKTRACE}</lable>';
+    
+     // Initialize Performance Logging parameters    
+    private static string pLogClassName = 'SmartEmailUtil';
+    private static string pLogReportingRegion = 'Smart Email';
+    private static string pLogQuery = '';
+    private static String pLogVariables = '';
+    
+    /**
+     * Method:
+     * getContacts
+     * 
+     * Summary:
+     * This method return the search list of contact which match search term.
+     * 
+     * Parameters:
+     * @ String searchText
+     * 
+     * Return Type: 
+     * @ List<sObject>
+     */
+    
+    public static List<sObject> getContacts(String searchText, String start, String orderBy, String orderDir){
+        List<Sobject> searchResult = null;
+        List<List<Sobject>> soslResult = null;    
+        List<SObject> modifiedResult = new List<SObject>();
+          
+        try{
+            Boolean resultFound = false;
+            
+            //Verify start value is valid or not
+            Integer startLimit = 0;
+                        
+            if(start != null && start.trim().Length() > 0){
+                startLimit = Integer.valueOf(start.trim());             
+            }
+            
+            // Get sort by value from URL
+            if(orderBy != null && orderBy.equalsIgnoreCase('ContactName')){
+                orderBy = 'LastName';               
+            }else {
+                orderBy = 'Account.Name';
+            }
+            
+            // Get sort Direction value from URL
+            if(orderDir != null && orderDir.equalsIgnoreCase('Desc')){
+                orderDir = 'DESC';
+            }else {
+                orderDir = 'ASC';
+            }
+            
+            // Create ordering
+            String orderByClause = '';
+            
+            if(orderBy.equalsIgnoreCase('LastName')){
+                orderByClause = orderBy + ' ' + orderDir + ', Account.Name';
+            }else if(orderBy.equalsIgnoreCase('Account.Name')){
+                orderByClause = orderBy + ' ' + orderDir + ', LastName';
+            }
+            
+            // It will return one extra contact to UI for show more functionality
+            Integer contactLimit = Integer.valueOf(SmartEmailSettings__c.getValues('SearchContactsPerPage').Value__c);
+            
+            if(startLimit <= 2000){
+                contactLimit ++;
+            }
+            searchText = searchText.replace('*','\\*');
+            
+            if(searchText.length() >= 2){//replace(' ','%')
+                List<String> searchWordList = searchText.split(' ');                
+                
+                String accountText = '%' + searchText.replace('\'','\\\'').replace(' ','%').replace('"','/"') + '%';
+                String contactSearchText = '% ' + searchText + '%';
+                String nameText =  searchText.replace(' ','%') + '%';
+                //String nameText =  searchText + '%';
+                searchText =  + searchText.replace(' ','* AND ')  +'*';             
+                
+                String searchQuery = '';
+                String searchWhereQuery = '(';
+                String searchWord = '\'';
+                
+                for(String currentString : searchWordList){
+                    searchWhereQuery += '(Name like \'' + currentString+ '%\' OR Name like \'% ' + currentString+ '%\') AND ';  
+                    searchWord += '(' + currentString + '*) AND '   ;   
+                }
+                
+                searchWhereQuery = searchWhereQuery.subString(0, searchWhereQuery.Length() - 4);
+                searchWhereQuery += ')';
+                searchWord = searchWord.subString(0, searchWord.Length() - 5);
+                searchWord += '\'';
+                
+                Set<String> contactID = new Set<String>();
+                searchText = String.escapeSingleQuotes(searchText);
+                nameText = String.escapeSingleQuotes(nameText);
+                //accountText = String.escapeSingleQuotes(accountText);
+                //searchQuery = 'Select id, firstname, lastname, Contact_Name__c,Nickname__c,Account.Name, Japanese_Last_Name__c from COntact WHERE Active_Flag__c = true AND AccountID != null And (  ' + accountWhereClause +  ' ' + searchWhereQuery + ') Order by ' + orderByClause + ' Limit :contactLimit OFFSET :startLimit';
+                //searchQuery = 'Select id, firstname, lastname, Contact_Name__c,Nickname__c,Account.Name, Japanese_Last_Name__c from COntact WHERE Active_Flag__c = true AND AccountId != null And ( Account.Name like :accountText OR ' + searchWhereQuery + ') Order by ' + orderByClause ;
+                //searchQuery = 'FIND :searchText IN ALL FIELDS RETURNING Contact (id, Contact_Name__c,Account.Name WHERE Active_Flag__c = true AND AccountId != null And ( Account.Name like :accountText OR ' + searchWhereQuery + ') Order by ' + orderByClause + ' Limit ' + contactLimit + ' OFFSET ' + startLimit + ')';
+                searchQuery = 'FIND :searchText IN ALL FIELDS RETURNING Contact (id,CIS_Contact_ID__c, Contact_Name__c, Account.Name WHERE Active_Flag__c = true AND AccountId != null And ( Account.Name like :accountText OR firstname like : nameText OR lastname like : nameText OR name like : nameText) Order by ' + orderByClause + ' Limit ' + contactLimit + ' OFFSET ' + startLimit + ')';
+                
+                string debugQuery = 'FIND {' + searchText + '} IN ALL FIELDS RETURNING Contact (id,CIS_Contact_ID__c, Contact_Name__c, Account.Name WHERE Active_Flag__c = true AND AccountId != null And ( Account.Name like \'' + accountText + '\' OR firstname like \'' + nameText + '\' OR lastname like \'' + nameText + '\' OR name like \'' + nameText + '\') Order by ' + orderByClause + ' Limit ' + contactLimit + ' OFFSET ' + startLimit + ')';
+                
+                //searchQuery = 'FIND ' + searchWord + ' IN NAME FIELDS RETURNING Contact (id WHERE Active_Flag__c = true AND AccountId != null Order by ' + orderByClause + ' Limit ' + contactLimit + ' OFFSET ' + startLimit + ')';
+                //searchQuery = 'FIND :searchText IN ALL FIELDS RETURNING Contact (id, Contact_Name__c,Account.Name WHERE Active_Flag__c = true AND AccountId != null And ( Account.Name like :accountText OR ' + searchWhereQuery + ') Order by ' + orderByClause + ' Limit :contactLimit)';
+                System.debug('searchQuery: ' + searchQuery);
+                System.debug('searchQuery: ' + debugQuery);
+                
+                pLogQuery = debugQuery;
+		        pLogVariables = 'searchText = ' + searchText;   
+		                
+		        // Start performance logging    
+		        PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getContacts', 1, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+		        
+                soslResult = search.query(debugQuery);
+                
+                // Stop performance logging
+        		PerformanceLogger.Stop();
+            
+        		// Save performance log
+        		PerformanceLogger.Save();
+                
+                System.debug('Search Result: ' + searchResult); 
+                return soslResult.size() > 0 ? soslResult[0] : null;                
+            }             
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+        
+        return null;
+    }      
+    
+    /**
+     * Method:
+     * getRecommendedResearchs
+     * 
+     * Summary:
+     * This method return the search list of Recommended Research Document.
+     * 
+     * Parameters:
+     * @ String resultRange
+     * @ String region
+     * @ String stars
+     * @ List<String> contactIDs
+     * 
+     * Return Type: 
+     * @ SmartEmailWrappers.parentResearchDocWrapper
+     */
+    
+    public static SmartEmailWrappers.parentResearchDocWrapper getRecommendedResearchs(String resultRange, String region, String stars, List<String> contactIDs, String start){
+        List<SmartEmailWrappers.ResearchDocWrapper> allResearchDocs = new List<SmartEmailWrappers.ResearchDocWrapper>();    
+        List<SmartEmailWrappers.ResearchDocWrapper> listResearchDocsFinal = new List<SmartEmailWrappers.ResearchDocWrapper>();
+        Boolean showMore = false;       
+        
+        try{
+            //Verify start value is valid or not
+            Integer startLimit = 0;
+                        
+            if(start != null && start.trim().Length() > 0){
+                startLimit = Integer.valueOf(start.trim());             
+            }
+            
+            //Read limit value from custom setting
+            Integer recommendedLimit = Integer.valueOf(SmartEmailSettings__c.getValues('RecommendedDocLimit').Value__c);
+            Integer extraRecords = recommendedLimit + 1;
+    
+            //TODO: Doc preference conditon is not considered
+            //getContactDocPreferenceCondition();
+            
+            String whereCondition = ' where contact__c in : contactIDs  AND Stars__c >=' + stars + ' ';
+            whereCondition += getResearchPickerPublishDateCondition(resultRange);   
+            
+            //DineshM: Please review the below 5 line of code
+            whereCondition +=  'AND Research_Document_Metadata__r.Active_Flag__c = true ';
+            
+            if(region != DataUtil.ALL_REGION){
+                regionRelatedResDocIds = T1C_DataUtil.searchResearchDocWithRegion(region);
+                whereCondition += 'AND Research_Document_Metadata__r.Team_Id__c in : regionRelatedResDocIds ';
+            }
+          
+            String cdmQuery = 'Select Research_Document_Metadata__c researchId, Count(Contact__c) contacts FROM Contact_Document_Match__c ' + whereCondition + ' Group by Research_Document_Metadata__c order by Count(Contact__c) DESC limit :extraRecords OFFSET :startLimit';
+            Map<String,Integer> mapResearchDocs = new Map<String,Integer>();
+            
+            System.debug('cdmQuery: ' + cdmQuery);
+            
+            pLogQuery = cdmQuery;
+		    pLogVariables = 'contact__c in' + contactIDs  + ', Stars__c >=' + stars +',Research_Document_Metadata__r.Team_Id__c in ' + regionRelatedResDocIds;  
+		                
+		    // Start performance logging    
+		    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getRecommendedResearchs', 1, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+		    
+            List<AggregateResult> cdmQueryResult = Database.query(cdmQuery);
+            PerformanceLogger.Stop();
+            system.debug('cdmQueryResult: ' + cdmQueryResult.size());
+            
+            //Identify if more records exists by querying one record more in query
+            if(recommendedLimit < cdmQueryResult.size()){
+                cdmQueryResult.remove(cdmQueryResult.size() - 1);
+                showMore = true;
+            }
+            
+            for(AggregateResult res : cdmQueryResult){
+                mapResearchDocs.put((String)(res.get('researchId')),(Integer)(res.get('contacts')));
+            }   
+          
+            Set<String> rdmIds = mapResearchDocs.keySet() ;
+            
+            whereCondition = ' where Id in : rdmIds and Active_Flag__c = true ';
+            whereCondition += getRegionCondition(region);
+    
+            String rdmQuery =   'Select Headline__c,Publish_DateTime__c,Document_ID__c,UPS_ID__c,Name,Author_List__c, Abstract__c, '+
+                                ' Company__c, Doc_Attribution__c, Active_Flag__c, Company__r.Covered_Company__c, IsRestricted__c '+
+                                ' from Research_Document_Metadata__c '+ whereCondition +
+                                ' order by Publish_DateTime__c desc, Headline__c asc, Id desc nulls last';
+            
+            System.debug('rdmQuery: ' + rdmQuery);        
+            
+            pLogQuery = rdmQuery;
+		    pLogVariables = 'Id =' + rdmIds  + ', Active_Flag__c = true';  
+		                
+		    // Start performance logging    
+		    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getRecommendedResearchs', 2, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+            
+            List<Research_Document_Metadata__c> listResearchDoc = Database.query(rdmQuery);         
+            
+            // Stop performance logging
+        	PerformanceLogger.Stop();
+            
+        	// Save performance log
+        	PerformanceLogger.Save();
+            
+            system.debug('listResearchDoc: ' + listResearchDoc.size());
+            
+            List<SmartEmailWrappers.ResearchDocCompareWrapper> researchDocsForSorting= new List<SmartEmailWrappers.ResearchDocCompareWrapper>();
+            
+            // APPLY RESTRICTION 
+            T1C_RecommendationRestrictions t1CRR = new T1C_RecommendationRestrictions();                                                
+            for(Research_Document_Metadata__c doc : (List<Research_Document_Metadata__c>)t1CRR.getDocumentsMarkedRestricted(listResearchDoc)){
+                SmartEmailWrappers.ResearchDocWrapper currentRDMWrapper = new SmartEmailWrappers.ResearchDocWrapper(doc,mapResearchDocs.get(doc.id),contactIDs.size(), doc.IsRestricted__c, doc.Abstract__c);
+                SmartEmailWrappers.ResearchDocCompareWrapper rdcWrapper = new SmartEmailWrappers.ResearchDocCompareWrapper(currentRDMWrapper);
+                                    
+                researchDocsForSorting.add(rdcWrapper);
+            }           
+            
+            //Sort Research Docs 
+            //sortResearchListOnContactSizeDesc(allResearchDocs);
+            
+            researchDocsForSorting.sort();
+            
+            for(SmartEmailWrappers.ResearchDocCompareWrapper rdcWrap:researchDocsForSorting)
+            {
+                listResearchDocsFinal.add(rdcWrap.rd);
+            }
+            
+        }catch(Exception exp){          
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+        
+        return new SmartEmailWrappers.parentResearchDocWrapper(listResearchDocsFinal, showMore, 0);
+    }
+    
+    /**
+     * Method:
+     * getRecommendedResearchs_EPUB
+     * 
+     * Summary:
+     * This method return the search list of Recommended Research Document for epub user.
+     * 
+     * Parameters:
+     * @ String resultRange
+     * @ String region
+     * @ String stars
+     * @ List<String> contactIDs
+     * 
+     * Return Type: 
+     * @ SmartEmailWrappers.parentResearchDocWrapper
+     */
+    
+    public static SmartEmailWrappers.parentResearchDocWrapper getRecommendedResearchs_EPUB(String resultRange, String region, String stars, List<String> contactIDs, String start){
+        List<SmartEmailWrappers.ResearchDocWrapper> allResearchDocs = new List<SmartEmailWrappers.ResearchDocWrapper>();    
+        List<SmartEmailWrappers.ResearchDocWrapper> listResearchDocsFinal = new List<SmartEmailWrappers.ResearchDocWrapper>();
+        Boolean showMore = false;       
+        
+        try{
+            //Verify start value is valid or not
+            Integer startLimit = 0;
+                        
+            if(start != null && start.trim().Length() > 0){
+                startLimit = Integer.valueOf(start.trim());             
+            }
+            
+            //Read limit value from custom setting
+            Integer docPerContact = Integer.valueOf(SmartEmailSettings__c.getValues('DocPerContactForEpubResearchPicker').Value__c);
+            Integer recommendedLimit = Integer.valueOf(SmartEmailSettings__c.getValues('RecommendedDocLimit').Value__c);
+            Integer extraRecords = recommendedLimit + 1;
+    
+            //TODO: Doc preference conditon is not considered
+            //getContactDocPreferenceCondition();
+            
+            String whereCondition = ' Stars__c >=' + stars + ' ';
+            whereCondition += getResearchPickerPublishDateCondition(resultRange);   
+            
+            whereCondition +=  'AND Research_Document_Metadata__r.Active_Flag__c = true ';
+            
+            if(region != DataUtil.ALL_REGION){
+                regionRelatedResDocIds = T1C_DataUtil.searchResearchDocWithRegion(region);
+                whereCondition += 'AND Research_Document_Metadata__r.Team_Id__c in : regionRelatedResDocIds ';
+            }
+            
+            //Get All top 10 CDM for contacts
+            String rdmQuery = 'Select ID, (SELECT Research_Document_Metadata__c ';
+            rdmQuery += 'FROM Contact_Document_Matches__r WHERE ' + whereCondition + ' order by Stars__c DESC, Publish_DateTime__c DESC, Headline__c ASC, Id DESC nulls last limit ' + docPerContact + ') FROM contact WHERE ID IN : contactIDs';   
+            
+            System.debug('rdmQuery: ' + rdmQuery);
+            List<String> rdmIds = new List<String>();
+            List<String> allRdmIds = new List<String>();    
+            Set<String> dupCheck = new Set<String>();
+            Map<String,Integer> mapResearchDocs = new Map<String,Integer>();
+            
+            pLogQuery = rdmQuery;
+		    pLogVariables = 'contact__c in' + contactIDs  + ', Stars__c >=' + stars +',Research_Document_Metadata__r.Team_Id__c in ' + regionRelatedResDocIds + ', Research_Document_Metadata__r.Active_Flag__c = true';  
+		                
+		    // Start performance logging    
+		    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getRecommendedResearchs_EPUB', 1, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+		    
+            for(Contact currentContact : Database.query(rdmQuery)){ 
+                for(Contact_Document_Match__c currentCDM : currentContact.Contact_Document_Matches__r){                     
+                    if(!dupCheck.contains(currentCDM.Research_Document_Metadata__c)){
+                        dupCheck.add(currentCDM.Research_Document_Metadata__c);
+                        allRdmIds.add(currentCDM.Research_Document_Metadata__c);
+                    }
+                    
+                    if(mapResearchDocs != null && mapResearchDocs.containsKey(currentCDM.Research_Document_Metadata__c)){
+                    	mapResearchDocs.put(currentCDM.Research_Document_Metadata__c, mapResearchDocs.get(currentCDM.Research_Document_Metadata__c) + 1) ;
+                    }else{
+                    	mapResearchDocs.put(currentCDM.Research_Document_Metadata__c,1);
+                    }
+                }
+            }
+            
+            PerformanceLogger.Stop();
+            
+            System.debug('startLimit: ' + startLimit);
+            System.debug('allRdmIds: ' + allRdmIds.size());
+            
+            if(allRdmIds.size() >= startLimit){
+                Integer availableLimit = allRdmIds.size() > (startLimit + recommendedLimit) ? recommendedLimit : (allRdmIds.size() - startLimit);
+                System.debug('availableLimit: ' + availableLimit);
+                
+                if(allRdmIds.size() > (startLimit + recommendedLimit)){
+                    showMore = true;
+                }
+                
+                for(Integer i = startLimit ; i < (startLimit + availableLimit); i++){
+                    rdmIds.add(allRdmIds.get(i));
+                }
+            }           
+            
+            System.debug('rdmIds: ' + rdmIds.size()); 
+            
+            /*String cdmQuery = 'Select Research_Document_Metadata__c researchId, Count(Contact__c) contacts FROM Contact_Document_Match__c WHERE contact__c in : contactIDs  AND Research_Document_Metadata__c IN: rdmIds Group by Research_Document_Metadata__c order by Count(Contact__c) DESC ';
+            Map<String,Integer> mapResearchDocs = new Map<String,Integer>();
+            
+            System.debug('cdmQuery: ' + cdmQuery);
+            List<AggregateResult> cdmQueryResult = Database.query(cdmQuery);
+            system.debug('cdmQueryResult: ' + cdmQueryResult.size());
+            
+            for(AggregateResult res : cdmQueryResult){
+                mapResearchDocs.put((String)(res.get('researchId')),(Integer)(res.get('contacts')));
+            }*/
+    
+            rdmQuery =  'Select Headline__c,Publish_DateTime__c,Document_ID__c,UPS_ID__c,Name,Author_List__c, Abstract__c, '+
+                                ' Company__c, Doc_Attribution__c, Active_Flag__c, Company__r.Covered_Company__c, IsRestricted__c '+
+                                ' from Research_Document_Metadata__c  where Id in : rdmIds';
+            
+            System.debug('rdmQuery: ' + rdmQuery);      
+            pLogQuery = rdmQuery;
+		    pLogVariables = 'Id in' + rdmIds;  
+		                
+		    // Start performance logging    
+		    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getRecommendedResearchs_EPUB', 2, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);  
+            List<Research_Document_Metadata__c> listResearchDoc = Database.query(rdmQuery);  
+            PerformanceLogger.Stop();
+            PerformanceLogger.Save();
+                   
+            system.debug('listResearchDoc: ' + listResearchDoc.size());
+            
+            List<SmartEmailWrappers.ResearchDocCompareWrapper> researchDocsForSorting= new List<SmartEmailWrappers.ResearchDocCompareWrapper>();
+            
+            // APPLY RESTRICTION 
+            T1C_RecommendationRestrictions t1CRR = new T1C_RecommendationRestrictions();                                                
+            for(Research_Document_Metadata__c doc : (List<Research_Document_Metadata__c>)t1CRR.getDocumentsMarkedRestricted(listResearchDoc)){
+                SmartEmailWrappers.ResearchDocWrapper currentRDMWrapper = new SmartEmailWrappers.ResearchDocWrapper(doc,mapResearchDocs.get(doc.id),contactIDs.size(), doc.IsRestricted__c, doc.Abstract__c);
+                listResearchDocsFinal.add(currentRDMWrapper);
+            }
+            
+        }catch(Exception exp){          
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+
+        return new SmartEmailWrappers.parentResearchDocWrapper(listResearchDocsFinal, showMore, 0);
+    }
+    
+    /**
+     * Method:
+     * getSpecificResearchs
+     * 
+     * Summary:
+     * This method return the search list of specific research which match search term.
+     * 
+     * Parameters:
+     * @ String dateRange
+     * @ String keyword
+     * @ String author
+     * @ String industry
+     * @ String DocumentType
+     * @ String region
+     * 
+     * Return Type: 
+     * @ SmartEmailWrappers.parentResearchDocWrapper
+     */
+    
+    public static SmartEmailWrappers.parentResearchDocWrapper getSpecificResearchs(String dateRange, String keyword, String author, String industry, String DocumentType, String region, String start){     
+        List<SmartEmailWrappers.ResearchDocWrapper> specificResearchDocs = new List<SmartEmailWrappers.ResearchDocWrapper>();
+        Boolean showMore = false;
+        Integer docCountbyQuery = 0 ;       
+        
+        try{
+            //Verify start value is valid or not
+            Integer startLimit = 0;
+                            
+            if(start != null && start.trim().Length() > 0){
+                startLimit = Integer.valueOf(start.trim());             
+            }
+            
+            //Read limit value from custom setting
+            Integer specificLimit = Integer.valueOf(SmartEmailSettings__c.getValues('SpecificDocLimit').Value__c);
+            Integer extraRecords = specificLimit + 1;
+
+            String whereCondition = ' Where Active_Flag__c = true ';   
+  
+            whereCondition += getDynamicFilterCondition(keyword);
+            whereCondition += getPublishDateCondition(dateRange);
+            whereCondition += getAuthorCondition(author);
+            whereCondition += getIndustryCondition(industry);
+            whereCondition += getDocumentTypesCondition(DocumentType);
+            whereCondition += getRegionCondition(region);
+            
+            String rdmQuery =   'Select Headline__c,Publish_DateTime__c,Document_ID__c,UPS_ID__c,Name, Author_List__c, Abstract__c,' + 
+                                'Company__c, Doc_Attribution__c, Active_Flag__c, Company__r.Covered_Company__c, IsRestricted__c '+                     
+                                'from Research_Document_Metadata__c ' + 
+                                 + whereCondition + 
+                                ' order by Publish_DateTime__c DESC nulls last, Headline__c ASC  LIMIT :extraRecords OFFSET :startLimit' ;
+            system.debug('rdmQuery: ' + rdmQuery);         
+            
+             //Apply Restrictions
+            T1C_RecommendationRestrictions t1CRR = new T1C_RecommendationRestrictions(); 
+            List<Research_Document_Metadata__c> rdmsList = new List<Research_Document_Metadata__c> (); 
+            
+            pLogQuery = rdmQuery;
+		    pLogVariables = 'whereCondition = ' + whereCondition;  
+		                
+		    // Start performance logging    
+		    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getSpecificResearchs', 1, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+		    
+            List<Research_Document_Metadata__c> listResearchDoc = Database.query(rdmQuery);
+            
+            PerformanceLogger.Stop();
+            
+            system.debug('specificLimit: ' + specificLimit + ' listResearchDoc: ' + listResearchDoc.size());
+            //Identify if more records exists by querying one record more in query
+            if(specificLimit < listResearchDoc.size()){
+                listResearchDoc.remove(listResearchDoc.size() - 1);
+                showMore = true;
+            }
+         
+            for(Research_Document_Metadata__c doc : listResearchDoc){      
+                rdmsList.add(
+                    new Research_Document_Metadata__c(
+                        Id = doc.Id, Headline__c = doc.Headline__c, 
+                        Publish_DateTime__c = doc.Publish_DateTime__c,
+                        Document_ID__c = doc.Document_ID__c, 
+                        Author_List__c = doc.Author_List__c, 
+                        Company__c = doc.Company__c, 
+                        UPS_ID__c = doc.UPS_ID__c,
+                        Doc_Attribution__c = doc.Doc_Attribution__c, 
+                        Active_Flag__c = doc.Active_Flag__c, 
+                        Company__r = doc.Company__r, 
+                        IsRestricted__c = doc.IsRestricted__c,
+                        Abstract__c = doc.Abstract__c
+                    )
+                );
+            }
+            
+            for(Research_Document_Metadata__c doc : (List<Research_Document_Metadata__c>)t1CRR.getDocumentsMarkedRestricted(rdmsList)){
+                //TODO: Contact id is used to create wrapper.For now not considered.     
+                //specificResearchDocs.add(new SmartEmailWrappers.ResearchDocWrapper(doc, conIds.size(), conIds.size(), doc.IsRestricted__c));
+                specificResearchDocs.add(new SmartEmailWrappers.ResearchDocWrapper(doc, 0, 0, doc.IsRestricted__c, doc.Abstract__c));                                   
+            }
+             
+            rdmsList.clear();
+            
+            Integer availableRows = limits.getLimitQueryRows() - limits.getQueryRows();
+                
+            String countQuery =  'Select count() ' +                      
+                                'from Research_Document_Metadata__c ' + 
+                                 + whereCondition + ' Limit ' + availableRows;
+            
+            pLogQuery = countQuery;
+		    pLogVariables = 'whereCondition = ' + whereCondition;  
+		                
+		    // Start performance logging    
+		    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getSpecificResearchs', 2, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+		     
+            docCountbyQuery = Database.countQuery(countQuery) ;
+            PerformanceLogger.Stop();
+            PerformanceLogger.Save();
+            
+            system.debug('****'+docCountbyQuery) ;
+        }catch(Exception exp){          
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }  
+
+        return new SmartEmailWrappers.parentResearchDocWrapper(specificResearchDocs, showMore, docCountbyQuery);
+    }
+    
+    /**
+     * Method:
+     * getSentEmail
+     * 
+     * Summary:
+     * This method return the search list of email sent during period for particular user.
+     * 
+     * Parameters:
+     * @ String sent
+     * @ String fromAddress
+     * @ String toAddress
+     * @ String account
+     * @ String subject
+     * @ String clicks
+     * @ String what_was_clicked
+     * @ String userID
+     * 
+     * Return Type: 
+     * @ SmartEmailWrappers.SentBoxWrapper
+     */
+    
+    public static SmartEmailWrappers.SentBoxWrapper getSentEmail(String sent, String sortBy, String sortDirection, String fromAddress, String toAddress, String account, String subject, String clicks, String what_was_clicked, String start, String recordlimit, String userID){
+        // TODO : Some more parameter is needed from URL 
+        try{
+            return SentAndDraftBox.getSentBoxList(sent, sortBy, sortDirection, fromAddress, toAddress, account, subject, clicks, what_was_clicked, start, recordlimit, userID);
+            //return SentAndDraftBox.getSentBoxListByUser(sent, ''/*sSort*/, ''/*dir*/, fromAddress, toAddress, account, subject, clicks, what_was_clicked, ''/*sStart*/, ''/*slimit*/, userID);
+        }catch(Exception exp){
+        	if(!exp.getMessage().equalsIgnoreCase('Maximum SOQL offset allowed is 2000')){
+	            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+	            throw new CustomException(error); 
+        	}          
+        }  
+        return null;
+    }   
+    
+    /**
+     * Method:
+     * getDraftEmail
+     * 
+     * Summary:
+     * This method return the search list of email draft during period for particular user.
+     * 
+     * Parameters:
+     * @ String sent
+     * @ String fromAddress
+     * @ String toAddress
+     * @ String account
+     * @ String subject
+     * @ String clicks
+     * @ String what_was_clicked
+     * @ String userID
+     * 
+     * Return Type: 
+     * @ SmartEmailWrappers.SentBoxWrapper
+     */
+    
+    public static SmartEmailWrappers.SentBoxWrapper getDraftEmail(String sent, String sortBy, String sortDirection, String fromAddress, String toAddress, String account, String subject, String clicks, String what_was_clicked, String start, String recordlimit, String userID){
+        // TODO : Some more parameter is needed from URL        
+        try{
+            return SentAndDraftBox.getDraftBoxList(sent, sortBy, sortDirection, fromAddress, toAddress, account, subject, clicks, what_was_clicked, start, recordlimit, userID);
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);          
+        }  
+        
+        return null;
+    } 
+    
+    /**
+     * Method:
+     * getUserDetails
+     * 
+     * Summary:
+     * This method returns the List Of user present in system which was search. 
+     * It also checks if current User is present in Power group which is related to Run as user functional role.
+     * 
+     * Parameters:
+     * @ String currentUserShortID
+     * @ String runAsUserShortId
+     * 
+     * Return Type: 
+     * @ List<SObject> 
+     */
+    
+    public static List<SObject> getUserDetails(String currentUserShortID, String runAsUserShortId){
+        Map<String, User> shortID_User_Map = new Map<String, User>();
+        Set<String> shortIDSet = new Set<String>();
+        Boolean isAdminUser = false;
+        Set<String> adminProfiles = new Set<String>();
+        
+        If(SmartEmailSettings__c.getValues('SEAdminProfiles') != null){
+        	adminProfiles.addAll(SmartEmailSettings__c.getValues('SEAdminProfiles').Value__c.split(','));
+        }
+        
+        //Check User Input
+        if(currentUserShortID != null && currentUserShortID.trim().length() > 0){
+            shortIDSet.add(currentUserShortID);
+        }
+        
+        if(runAsUserShortId != null && runAsUserShortId.trim().length() > 0){
+            shortIDSet.add(runAsUserShortId);
+        }
+        
+        pLogQuery = 'SELECT ID, Profile.Name, T1C_User_Short_ID__c, T1C_FunctionalRole__c FROM User WHERE T1C_User_Short_ID__c IN: shortIDSet AND isActive = true';
+	    pLogVariables = 'T1C_User_Short_ID__c = ' + shortIDSet + ', isActive = true';  
+	                
+	    // Start performance logging    
+	    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getUserDetails', 1, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+	    
+        //Extract User Details
+        //23 MAR  2015    :       Dinesh M    :       Removed conditon for functional role 
+        for(User currentUser : [SELECT ID, Profile.Name, Profile.ID, T1C_User_Short_ID__c, T1C_FunctionalRole__c FROM User WHERE T1C_User_Short_ID__c IN: shortIDSet AND isActive = true]){
+            if(currentUser.T1C_User_Short_ID__c == currentUserShortID){
+                if(adminProfiles.contains(currentUser.Profile.Name) || adminProfiles.contains(currentUser.Profile.ID)){
+                    isAdminUser = true;
+                }
+            }
+            
+            shortID_User_Map.put(currentUser.T1C_User_Short_ID__c, currentUser);
+        } 
+        
+        PerformanceLogger.Stop();
+        
+        // Allowing sys admin user to run as any user
+        if(isAdminUser){
+        	return (List<SObject>)shortID_User_Map.values();
+        }      
+        
+        //Check if passed user are present in salesforce
+        if(shortID_User_Map.size() == shortIDSet.size()){
+            
+            if(shortID_User_Map.size() > 1){  
+            	if(shortID_User_Map.get(runAsUserShortId).T1C_FunctionalRole__c == null){
+            		throw new CustomException('User Power Group didn\'t match: ');
+            	} 
+            	
+            	pLogQuery = 'SELECT GroupId FROM GroupMember WHERE UserOrGroupId =: shortID_User_Map.get(currentUserShortID).ID';
+			    pLogVariables = 'UserOrGroupId = ' + shortID_User_Map.get(currentUserShortID).ID ;  
+			                
+			    // Start performance logging    
+			    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getUserDetails', 2, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables); 
+                
+                //check if Power user match with functional role of run as user
+                for(GroupMember currentMember : [SELECT GroupId FROM GroupMember WHERE UserOrGroupId =: shortID_User_Map.get(currentUserShortID).ID]){
+                	
+                    if(currentMember.GroupId == T1C_FunctionalRolePowerGroupMapSetting__c.getValues(shortID_User_Map.get(runAsUserShortId).T1C_FunctionalRole__c).Group_ID__c){
+                        return (List<SObject>)shortID_User_Map.values();
+                    }               
+                }
+                
+                PerformanceLogger.Stop();
+                PerformanceLogger.Save();
+                
+                throw new CustomException('User Power Group didn\'t match: ');
+                
+            }else{
+                return (List<SObject>)shortID_User_Map.values();
+            }
+            
+        }else{
+            throw new CustomException('Invalid User: ');
+        }
+        
+        return null;
+    }   
+    
+    /**
+     * Method:
+     * getUserDetails
+     * 
+     * Summary:
+     * This is overloaded method, This method will query user by user salesforce id
+     * 
+     * Parameters:
+     * @ String userSalesforceID
+     * 
+     * Return Type: 
+     * @ List<SObject> 
+     */
+    
+    public static List<SObject> getUserDetails(String userSalesforceID){        
+                
+        try{            
+            return [SELECT Name, T1C_User_Short_ID__c FROM User WHERE ID =: userSalesforceID];
+        }catch(Exception exp){          
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);           
+        }
+        
+        return null;
+    } 
+    
+    /**
+     * Method:
+     * addUserInResponseHeader
+     * 
+     * Summary:
+     * Use this Method to add User information in response header
+     * 
+     * Parameters:
+     * @ RestRequest req
+     * @ Restresponse res
+     * 
+     * Return Type: 
+     * @ None 
+     */
+    
+    public static void addUserInResponseHeader(RestRequest req, Restresponse res){
+        //res.addHeader('Content-Encoding' , 'gzip,deflate');
+            
+        String currentUserShortID = req.headers.get('GPS-Username') != null ? req.headers.get('GPS-Username').toLowerCase() : req.headers.get('GPS-Username');      
+        String runAsUserShortId = req.headers.get('GPS-Runas') != null? req.headers.get('GPS-Runas').toLowerCase() : req.headers.get('GPS-Runas');  
+        currentLoggedinUserShortID = runAsUserShortId;
+        pLogClassName = 'SmartEmailUtil - ' + currentLoggedinUserShortID;
+                    
+        List<User> userInfo = (List<User>)SmartEmailUtil.getUserDetails(currentUserShortID, runAsUserShortId);
+
+        if(userInfo.size() > 1){
+            if(userInfo[1].T1C_User_Short_ID__c == runAsUserShortId){
+                res.addHeader('GPS-Runas' , userInfo[1].T1C_User_Short_ID__c);
+                res.addHeader('GPS-Username' , userInfo[0].T1C_User_Short_ID__c);
+                
+                currentLoggedinUserID = userInfo[1].ID;
+            }else{
+                res.addHeader('GPS-Runas' , userInfo[0].T1C_User_Short_ID__c);
+                res.addHeader('GPS-Username' , userInfo[1].T1C_User_Short_ID__c);
+                currentLoggedinUserID = userInfo[0].ID;
+            }
+        }else if(userInfo.size() > 0){
+            if(userInfo[0].T1C_User_Short_ID__c == runAsUserShortId){
+                res.addHeader('GPS-Runas' , userInfo[0].T1C_User_Short_ID__c);
+                currentLoggedinUserID = userInfo[0].ID;
+            }else{
+                res.addHeader('GPS-Username' , userInfo[0].T1C_User_Short_ID__c);
+                currentLoggedinUserID = userInfo[0].ID;
+            }
+        }
+    }
+    
+    /**Inner Class used for custom exception**/
+    public class CustomException extends Exception {} 
+    
+    /**
+     * Method:
+     * getRecommendedPicklist
+     * 
+     * Summary:
+     * This method returns the Select option value required in recommended tab of research picker .
+     * 
+     * Parameters:
+     * @ None
+     * 
+     * Return Type: 
+     * @ List<SmartEmailWrappers.PickListWrapper> 
+     */
+    
+    public static List<SmartEmailWrappers.PickListWrapper> getRecommendedPicklist(){
+        List<SmartEmailWrappers.PickListWrapper> pickListWrapperList = new List<SmartEmailWrappers.PickListWrapper>();      
+        
+        try{            
+            //Add Result range
+            List<SmartEmailWrappers.PickListOption> resultRangeOptionList = new List<SmartEmailWrappers.PickListOption>();
+            
+            for(SelectOption currentOption : DataUtil.getResearchPickerRecommendDateRange()){
+                resultRangeOptionList.add(new SmartEmailWrappers.PickListOption(currentOption.getLabel(), currentOption.getValue()));
+            }
+                        
+            pickListWrapperList.add(new SmartEmailWrappers.PickListWrapper('Results Range', resultRangeOptionList));
+            
+            //Add regions
+            List<SmartEmailWrappers.PickListOption> regionOptionList = new List<SmartEmailWrappers.PickListOption>();
+            
+            for(SelectOption currentOption : DataUtil.getPrePopulatedRegionList()){             
+                regionOptionList.add(new SmartEmailWrappers.PickListOption(currentOption.getLabel(), currentOption.getValue()));
+            }                   
+            
+            pickListWrapperList.add(new SmartEmailWrappers.PickListWrapper('Regions', regionOptionList));
+            
+            //Add Document stars
+            List<SmartEmailWrappers.PickListOption> documentTypeOptionList = new List<SmartEmailWrappers.PickListOption>();
+            
+            for(SelectOption currentOption : DataUtil.getStarRatingList()){
+                documentTypeOptionList.add(new SmartEmailWrappers.PickListOption(currentOption.getLabel(), currentOption.getValue()));
+            }
+            
+            pickListWrapperList.add(new SmartEmailWrappers.PickListWrapper('Include documents with', documentTypeOptionList));          
+            
+        }catch(Exception exp){          
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);          
+        }      
+        
+        return pickListWrapperList;
+    } 
+    
+    /**
+     * Method:
+     * getSpecificPicklist
+     * 
+     * Summary:
+     * This method returns the Select option value required in specific research search tab of research picker .
+     * 
+     * Parameters:
+     * @ None
+     * 
+     * Return Type: 
+     * @ List<SmartEmailWrappers.PickListWrapper> 
+     */
+    
+    public static List<SmartEmailWrappers.PickListWrapper> getSpecificPicklist(){
+        List<SmartEmailWrappers.PickListWrapper> pickListWrapperList = new List<SmartEmailWrappers.PickListWrapper>();      
+        
+        try{            
+            //Add Date range
+            List<SmartEmailWrappers.PickListOption> dateRangeOptionList = new List<SmartEmailWrappers.PickListOption>();
+            
+            for(SelectOption currentOption : DataUtil.getPrePopulatedPublishDateList()){
+                dateRangeOptionList.add(new SmartEmailWrappers.PickListOption(currentOption.getLabel(), currentOption.getValue()));
+            }
+                        
+            pickListWrapperList.add(new SmartEmailWrappers.PickListWrapper('Date Range', dateRangeOptionList));
+            
+            //Add Authors
+            List<SmartEmailWrappers.PickListOption> authorOptionList = new List<SmartEmailWrappers.PickListOption>();
+            
+            for(SelectOption currentOption : DataUtil.getAuthorsList()){                
+                authorOptionList.add(new SmartEmailWrappers.PickListOption(currentOption.getLabel(), currentOption.getValue()));
+            }                   
+            
+            pickListWrapperList.add(new SmartEmailWrappers.PickListWrapper('Authors', authorOptionList));
+            
+            //Add Regions
+            List<SmartEmailWrappers.PickListOption> regionOptionList = new List<SmartEmailWrappers.PickListOption>();
+            
+            for(SelectOption currentOption : DataUtil.getPrePopulatedRegionList()){
+                regionOptionList.add(new SmartEmailWrappers.PickListOption(currentOption.getLabel(), currentOption.getValue()));
+            }
+            
+            pickListWrapperList.add(new SmartEmailWrappers.PickListWrapper('Regions', regionOptionList));   
+            
+            //Add Industry
+            List<SmartEmailWrappers.PickListOption> industryOptionList = new List<SmartEmailWrappers.PickListOption>();
+            
+            for(SelectOption currentOption : DataUtil.getIndustryList()){
+                industryOptionList.add(new SmartEmailWrappers.PickListOption(currentOption.getLabel(), currentOption.getValue()));
+            }
+            
+            pickListWrapperList.add(new SmartEmailWrappers.PickListWrapper('Industry', industryOptionList));    
+            
+            //Add Document Type
+            List<SmartEmailWrappers.PickListOption> documentTypeOptionList = new List<SmartEmailWrappers.PickListOption>();
+            
+            for(SelectOption currentOption : DataUtil.getDocumentTypeList()){
+                documentTypeOptionList.add(new SmartEmailWrappers.PickListOption(currentOption.getLabel(), currentOption.getValue()));
+            }
+            
+            pickListWrapperList.add(new SmartEmailWrappers.PickListWrapper('Document Type', documentTypeOptionList));           
+            
+        }catch(Exception exp){          
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);          
+        }
+        
+        return pickListWrapperList;
+    } 
+    
+    /**
+     * Method:
+     * getSentBoxPicklist
+     * 
+     * Summary:
+     * This method returns the Select option value required in Sent Box tab of Sent tailored email section.
+     * 
+     * Parameters:
+     * @ None
+     * 
+     * Return Type: 
+     * @ List<SmartEmailWrappers.PickListWrapper> 
+     */
+    
+    public static List<SmartEmailWrappers.PickListWrapper> getSentBoxPicklist(){
+        List<SmartEmailWrappers.PickListWrapper> pickListWrapperList = new List<SmartEmailWrappers.PickListWrapper>();      
+        
+        try{            
+            SentBox_Settings__c sentBoxSetting = SentBox_Settings__c.getInstance('SentBoxPickList');
+            
+            //Add From Options
+            List<SmartEmailWrappers.PickListOption> fromOptionList = new List<SmartEmailWrappers.PickListOption>();
+            String fromOptions = sentBoxSetting.FromOptions__c;
+            
+            for(String currentOption : fromOptions.split(';')){
+                fromOptionList.add(new SmartEmailWrappers.PickListOption(currentOption.split(':')[0], currentOption.split(':')[1]));
+            }
+            
+            pickListWrapperList.add(new SmartEmailWrappers.PickListWrapper('From', fromOptionList));
+            
+            //Add Sent range options
+            List<SmartEmailWrappers.PickListOption> sentOptionList = new List<SmartEmailWrappers.PickListOption>();
+            String sentOptions = sentBoxSetting.SentCurrentMonthOptions__c ;                
+            
+            for(String currentOption : sentOptions.split(';')){
+                sentOptionList.add(new SmartEmailWrappers.PickListOption(currentOption.split(':')[0], currentOption.split(':')[1]));
+            }
+            
+            Date d1 = Date.Today().toStartOfMonth();
+            transient integer currentMonth;
+            transient integer currentYear;
+            transient List<string> allMonths = new List<string>{'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'};
+            transient string Month = '';
+
+            for(integer i = 1; i <= 12; i++){
+                d1 = d1.addMonths(-1);
+                currentMonth = d1.month() -1;
+                currentYear= d1.year();
+                system.debug(currentMonth);
+                transient string monthName = allMonths.get(currentMonth) + ' ' + currentYear;
+                sentOptionList.add(new SmartEmailWrappers.PickListOption(allMonths[currentMonth] + ' ' + currentYear, '-' + String.valueOf(i)));
+            }
+            
+            pickListWrapperList.add(new SmartEmailWrappers.PickListWrapper('Sent', sentOptionList));        
+            
+        }catch(Exception exp){          
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);          
+        }   
+        
+        return pickListWrapperList;
+    }
+    
+    /**
+     * Method:
+     * getDraftBoxPicklist
+     * 
+     * Summary:
+     * This method returns the Select option value required in Draft Box tab of Sent tailored email section.
+     * 
+     * Parameters:
+     * @ None
+     * 
+     * Return Type: 
+     * @ List<SmartEmailWrappers.PickListWrapper> 
+     */
+    
+    public static List<SmartEmailWrappers.PickListWrapper> getDraftBoxPicklist(){
+        List<SmartEmailWrappers.PickListWrapper> pickListWrapperList = new List<SmartEmailWrappers.PickListWrapper>();      
+        
+        try{            
+            SentBox_Settings__c sentBoxSetting = SentBox_Settings__c.getInstance('DraftBoxPickList');
+            
+            //Add From Options
+            List<SmartEmailWrappers.PickListOption> fromOptionList = new List<SmartEmailWrappers.PickListOption>();
+            String fromOptions = sentBoxSetting.FromOptions__c;
+            
+            for(String currentOption : fromOptions.split(';')){
+                fromOptionList.add(new SmartEmailWrappers.PickListOption(currentOption.split(':')[0], currentOption.split(':')[1]));
+            }
+            
+            pickListWrapperList.add(new SmartEmailWrappers.PickListWrapper('From', fromOptionList));
+            
+            //Add Draft range options
+            List<SmartEmailWrappers.PickListOption> draftOptionList = new List<SmartEmailWrappers.PickListOption>();
+            String sentOptions = sentBoxSetting.SentCurrentMonthOptions__c ;                
+            
+            for(String currentOption : sentOptions.split(';')){
+                draftOptionList.add(new SmartEmailWrappers.PickListOption(currentOption.split(':')[0], currentOption.split(':')[1]));
+            }       
+            
+            pickListWrapperList.add(new SmartEmailWrappers.PickListWrapper('Last Saved', draftOptionList));
+        }catch(Exception exp){          
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);         
+        } 
+        
+        return pickListWrapperList;
+    }    
+    
+    /**
+     * Method:
+     * getEmailCampaign
+     * 
+     * Summary:
+     * This method return the email campaign of particular email campaign ID
+     * 
+     * Parameters:
+     * @ String campaignId
+     * 
+     * Return Type: 
+     * @ List<sObject>
+     */
+    
+    public static List<sObject> getEmailCampaign(String campaignId, String userID){
+        EmailCampaign__c emailCampaign = new EmailCampaign__c();        
+        
+        try{   
+        	pLogQuery = 'Select Iteration__c, Smart_Filter_Values_Text__c, Is_ForcedResetECI_Active__c, Is_single_user_workflow__c, ECRD_Sort_By__c, Is_Clone__c, OwnerID, ID, Campaign_Date__c, Footer__c, From__c, From_FirstName__c, From_LastName__c, Introduction__c, Research_Views__c, Non_Sent_Recipients__c, Recipients__c, Subject__c, Ticker_Personalization__c,isDraft__c,';
+            pLogQuery += '(Select From__c, From_FirstName__c, From_LastName__c, Email_Campaign__c, Contact__r.Displayed_Personalized_Nickname__c, Contact__r.LastNameJP__c, Contact__r.FirstName, Contact__r.LastName, Contact__r.Contact_Name__c, Contact__r.Id, Contact__r.Prefer_Business_Email__c, Contact__r.Account_Name__c, Contact__c From Email_Campaign_Items__r)';
+            pLogQuery += 'From EmailCampaign__c Where id =:campaignId';
+            
+	        pLogVariables = 'campaignId = ' + campaignId;  
+	            
+	        // Start performance logging
+	        PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getEmailCampaign', 1, pLogQuery, PerformanceLogger.LOG_SOQL, pLogVariables);
+	        
+	             
+            emailCampaign = [ Select Iteration__c, Smart_Filter_Values_Text__c, Is_ForcedResetECI_Active__c, Is_single_user_workflow__c, ECRD_Sort_By__c, Is_Clone__c, OwnerID, ID, Campaign_Date__c, Footer__c, From__c, From_FirstName__c, From_LastName__c, Introduction__c, Research_Views__c, Non_Sent_Recipients__c, Recipients__c, Subject__c, Ticker_Personalization__c,isDraft__c,
+                              (Select From__c, From_FirstName__c, From_LastName__c, Email_Campaign__c, Contact__r.Displayed_Personalized_Nickname__c, Contact__r.LastNameJP__c, Contact__r.FirstName, Contact__r.LastName, Contact__r.Contact_Name__c, Contact__r.Id, Contact__r.Prefer_Business_Email__c, Contact__r.Account_Name__c, Contact__c From Email_Campaign_Items__r)
+                              From EmailCampaign__c
+                              Where id =:campaignId];
+          	PerformanceLogger.Stop();
+          	PerformanceLogger.Save();
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+        
+        
+        //return new List<sObject>{(sObject)emailCampaign};
+        List<SObject> resultList = new List<SObject>();
+        resultList.add((sObject)emailCampaign);
+        
+        // Include Delegater and Employee information as well
+        resultList.addAll(getDelegator(String.valueOf(emailCampaign.OwnerID)));
+        //resultList.addAll(getEmployee(String.valueOf(emailCampaign.OwnerID)));
+        system.debug('resultList='+resultList);
+                          
+        return resultList; 
+    }
+    
+     /**
+     * Method:
+     * getEmailCampaignItemsByECID
+     * 
+     * Summary:
+     * This method return the list of email campaign item of particular email campaign
+     * 
+     * Parameters:
+     * @ String campaignId
+     * 
+     * Return Type: 
+     * @ List<sObject>
+     */
+     
+    public static List<sObject> getEmailCampaignItemsByECID(String campaignId, String isStep2){ 
+        //TODO : Do we need any sorting order
+        transient List<Email_Campaign_Item__c> ecIList = new List<Email_Campaign_Item__c>();       
+        
+        String query = '';
+        
+        query += 'Select Iteration_Added__c, From__c, From_FirstName__c, From_LastName__c, ERDI_Sort_By__c, e.Contact__r.Contact_Name__c, e.Contact__r.FirstName, e.Contact__r.LastName, e.Contact__r.Nickname__c, e.Contact__r.Displayed_Personalized_Nickname__c, e.Contact__r.LastNameJP__c, e.Contact__r.Id, e.Contact__r.Prefer_Business_Email__c, Contact__r.Account_Name__c, ';
+        query += 'Contact__c, eMail_Body__c, Email_Campaign__c, Email_Queue_Batch__c, eMail_Sent__c, eMail_Sent_Date_Time__c, Email_Sent_TimeStamp__c, ';
+        //query += 'Footer__c, Introduction__c, Introduction_Long__c, Introduction_Personalized__c, isDraft__c, Is_Email_Body_Created__c, Missing_Personalize_Text__c, ';        
+        query += 'Introduction_Personalized__c, isDraft__c, Is_Email_Body_Created__c, Missing_Personalize_Text__c, ';
+        query += 'Research_Count__c, Research_Views__c, Step2_Introduction_Personalized__c, Step2_Subject_Personalized__c, ';
+        query += 'Subject__c, Subject_Personalized__c ';
+        query += 'From Email_Campaign_Item__c e where e.Email_Campaign__c = : campaignId ';
+        
+        if(isStep2 == null || (isStep2 != null && !isStep2.equalsIgnoreCase('true'))){
+            query += 'AND eMail_Sent__c = false';
+        }
+        
+        query += ' Order By Contact__r.Account_Name__c, Contact__r.LastName ';
+        
+        try{
+        	
+        	pLogQuery = query;
+	        pLogVariables = 'Email_Campaign__c = ' + campaignId;  
+	            
+	        // Start performance logging
+	        PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getEmailCampaignItemsByECID', 1, pLogQuery, PerformanceLogger.LOG_SOQL, pLogVariables);
+	        
+            for(List<Email_Campaign_Item__c> tempList: database.query(query)){
+                ecIList.addAll(tempList);     
+            }
+            
+            PerformanceLogger.Stop();
+            PerformanceLogger.Save();
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+      
+        return ecIList;   
+    }
+    
+    /**
+     * Method:
+     * getEmailCampaignItemsByECIID
+     * 
+     * Summary:
+     * This method return the list of email campaign item of particular email campaign item ID
+     * 
+     * Parameters:
+     * @ String campaignId
+     * 
+     * Return Type: 
+     * @ List<sObject>
+     */
+     
+    public static List<sObject> getEmailCampaignItemsByECIID(String eciId){ 
+        //TODO : Do we need any sorting order
+        transient List<Email_Campaign_Item__c> ecIList = new List<Email_Campaign_Item__c>();        
+        
+        try{
+        	pLogQuery = 'Select From__c, From_FirstName__c, From_LastName__c, ERDI_Sort_By__c, e.Contact__r.FirstName, e.Contact__r.LastName, e.Contact__r.Nickname__c, e.Contact__r.Displayed_Personalized_Nickname__c, e.Contact__r.LastNameJP__c, e.Contact__r.Contact_Name__c, e.Contact__r.Id, e.Contact__r.Prefer_Business_Email__c, Contact__r.Account_Name__c,Contact__c, eMail_Body__c, Email_Campaign__c, Email_Campaign__r.From__c, Email_Campaign__r.Is_Clone__c, Email_Queue_Batch__c, eMail_Sent__c, eMail_Sent_Date_Time__c, Email_Sent_TimeStamp__c,Footer__c, Introduction__c, Introduction_Long__c, Introduction_Personalized__c, isDraft__c, Is_Email_Body_Created__c, Missing_Personalize_Text__c,Research_Count__c, Research_Views__c, Step2_Introduction_Personalized__c, Step2_Subject_Personalized__c,Subject__c, Subject_Personalized__c, Email_Queue_Batch__r.Blastmail_Transaction_ID__c From Email_Campaign_Item__c e where Id = : eciId';
+	        pLogVariables = 'Id = ' + eciId;  
+	            
+	        // Start performance logging
+	        PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getEmailCampaignItemsByECIID', 1, pLogQuery, PerformanceLogger.LOG_SOQL, pLogVariables);
+	        
+            for(List<Email_Campaign_Item__c> tempList: [Select Iteration_Added__c, From__c, From_FirstName__c, From_LastName__c, ERDI_Sort_By__c, e.Contact__r.FirstName, e.Contact__r.LastName, e.Contact__r.Nickname__c, e.Contact__r.Displayed_Personalized_Nickname__c, e.Contact__r.LastNameJP__c, e.Contact__r.Contact_Name__c, e.Contact__r.Id, e.Contact__r.Prefer_Business_Email__c, Contact__r.Account_Name__c,
+                                                        Contact__c, eMail_Body__c, Email_Campaign__c, Email_Campaign__r.From__c, Email_Campaign__r.Is_Clone__c, Email_Queue_Batch__c, eMail_Sent__c, eMail_Sent_Date_Time__c, Email_Sent_TimeStamp__c, 
+                                                        Footer__c, Introduction__c, Introduction_Long__c, Introduction_Personalized__c, isDraft__c, Is_Email_Body_Created__c, Missing_Personalize_Text__c, 
+                                                        Research_Count__c, Research_Views__c, Step2_Introduction_Personalized__c, Step2_Subject_Personalized__c, 
+                                                        Subject__c, Subject_Personalized__c, Email_Queue_Batch__r.Blastmail_Transaction_ID__c                                                       
+                                                        From Email_Campaign_Item__c e 
+                                                        where Id = : eciId ]){
+                ecIList.addAll(tempList);     
+            }
+            
+            PerformanceLogger.Stop();
+            PerformanceLogger.Save();
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+      
+        return ecIList;   
+    }
+    
+     /**
+     * Method:
+     * getECRD
+     * 
+     * Summary:
+     * This method return the list of email campaign research document of particular email campaign.
+     * 
+     * Parameters:
+     * @ String campaignId
+     * 
+     * Return Type: 
+     * @ List<sObject>
+     */
+     
+    public static List<sObject> getECRD(String campaignId){ 
+        //TODO : Do we need any sorting order
+        transient List<Email_Campaign_Research_Document__c> ecrdList = new List<Email_Campaign_Research_Document__c>();        
+        
+        try{
+        	pLogQuery = 'Select Is_ForcedResetERDI_Active__c, ID, Is_Active__c, Name, Contacts_Associated__c, Document_Id__c, Email_Campaign__c, Is_Completed__c, Is_Smart_Filter_Recommendation__c, IsSpecific__c, IsResend__c, Personalized_Abstracts__c, Research_Document_Metadata__c, Ticker_Personalization__c,Is_Added_in_Step2__c,Doc_RLink__c,Research_Document_Metadata__r.Name, Research_Document_Metadata__r.Active_Flag__c, Research_Document_Metadata__r.Document_ID__c, Research_Document_Metadata__r.Headline__c, Research_Document_Metadata__r.Language_Cd__c, is_Included__c,Research_Document_Metadata__r.Periodical_Id__c, Research_Document_Metadata__r.Periodical_Name__c, Research_Document_Metadata__r.Publish_DateTime__c, Research_Document_Metadata__r.Team_Id__c, Research_Document_Metadata__r.Title__c, Research_Document_Metadata__r.UPS_ID__c, Research_Document_Metadata__r.Insert_Completed__c, Research_Document_Metadata__r.Document_Type__c, Research_Document_Metadata__r.Abstract__c, Research_Document_Metadata__r.Author_List__c, Research_Document_Metadata__r.HTML_Abstract__c, Research_Document_Metadata__r.Primary_Ticker__c, Research_Document_Metadata__r.Insert_Completed_Datetime__c, Research_Document_Metadata__r.Short_Headline__c, Research_Document_Metadata__r.Doc_Attribution__c, Research_Document_Metadata__r.Bloomberg_Short_Headline__c, Research_Document_Metadata__r.Primary_Bloomberg_Ticker__c, Research_Document_Metadata__r.Number_of_document_topics__c, Research_Document_Metadata__r.Company__c, Research_Document_Metadata__r.IsRestricted__c, Research_Document_Metadata__r.Document_Id_Status__c, ECRD_Sort_Order__c, IsERDISent__c, Is_Abstract_Modified__c, Is_Managed__cFrom Email_Campaign_Research_Document__c  Where Email_Campaign__c =: campaignId ORDER BY ECRD_Sort_Order__c';
+	        pLogVariables = 'Email_Campaign__c = ' + campaignId;  
+	            
+	        // Start performance logging
+	        PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getECRD', 1, pLogQuery, PerformanceLogger.LOG_SOQL, pLogVariables);
+	        
+            for(List<Email_Campaign_Research_Document__c> tempList: [Select Is_ForcedResetERDI_Active__c, ID, Is_Active__c, Name, Contacts_Associated__c, Document_Id__c, Email_Campaign__c, Is_Completed__c, Is_Smart_Filter_Recommendation__c, IsSpecific__c, IsResend__c, Personalized_Abstracts__c, Research_Document_Metadata__c, Ticker_Personalization__c,Is_Added_in_Step2__c,Doc_RLink__c,
+                                                                    Research_Document_Metadata__r.Name, Research_Document_Metadata__r.Active_Flag__c, Research_Document_Metadata__r.Document_ID__c, Research_Document_Metadata__r.Headline__c, Research_Document_Metadata__r.Language_Cd__c, is_Included__c,
+                                                                    Research_Document_Metadata__r.Periodical_Id__c, Research_Document_Metadata__r.Periodical_Name__c, Research_Document_Metadata__r.Publish_DateTime__c, Research_Document_Metadata__r.Team_Id__c, Research_Document_Metadata__r.Title__c, 
+                                                                    Research_Document_Metadata__r.UPS_ID__c, Research_Document_Metadata__r.Insert_Completed__c, Research_Document_Metadata__r.Document_Type__c, Research_Document_Metadata__r.Abstract__c, Research_Document_Metadata__r.Author_List__c, 
+                                                                    Research_Document_Metadata__r.HTML_Abstract__c, Research_Document_Metadata__r.Primary_Ticker__c, Research_Document_Metadata__r.Insert_Completed_Datetime__c, Research_Document_Metadata__r.Short_Headline__c, Research_Document_Metadata__r.Doc_Attribution__c, 
+                                                                    Research_Document_Metadata__r.Bloomberg_Short_Headline__c, Research_Document_Metadata__r.Primary_Bloomberg_Ticker__c, Research_Document_Metadata__r.Number_of_document_topics__c, Research_Document_Metadata__r.Company__c, Research_Document_Metadata__r.IsRestricted__c, 
+                                                                    Research_Document_Metadata__r.Document_Id_Status__c, ECRD_Sort_Order__c, IsERDISent__c, Is_Abstract_Modified__c, Is_Managed__c
+                                                                    From Email_Campaign_Research_Document__c  
+                                                                    Where Email_Campaign__c =: campaignId ORDER BY ECRD_Sort_Order__c]){
+                ecrdList.addAll(tempList);     
+            }
+            
+            PerformanceLogger.Stop();
+            PerformanceLogger.Save();
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }        
+      
+        return ecrdList;   
+    }   
+    
+    /**
+     * Method:
+     * getECRDWithRDMInfo
+     * 
+     * Summary:
+     * This method return the list of email campaign research document containing RDM Information. 
+     * 
+     * Parameters:
+     * @ List<Email_Campaign_Research_Document__c> ecrdList
+     * 
+     * Return Type: 
+     * @ List<sObject>
+     */
+     
+    public static List<sObject> getECRDWithRDMInfo(List<Email_Campaign_Research_Document__c> requestedERCDS){   
+        //TODO : Do we need any sorting order
+        transient List<Email_Campaign_Research_Document__c> ecrdList = new List<Email_Campaign_Research_Document__c>();        
+        
+        try{        	
+        	pLogQuery = 'Select ID,Is_Active__c, Name, Contacts_Associated__c, Document_Id__c, Email_Campaign__c, Is_Completed__c, Is_Smart_Filter_Recommendation__c, IsSpecific__c, IsResend__c, Personalized_Abstracts__c, Research_Document_Metadata__c, Ticker_Personalization__c, Is_Added_in_Step2__c,Doc_RLink__c,Research_Document_Metadata__r.Name, Research_Document_Metadata__r.Active_Flag__c, Research_Document_Metadata__r.Document_ID__c, Research_Document_Metadata__r.Headline__c, Research_Document_Metadata__r.Language_Cd__c, is_Included__c, Research_Document_Metadata__r.Periodical_Id__c, Research_Document_Metadata__r.Periodical_Name__c, Research_Document_Metadata__r.Publish_DateTime__c, Research_Document_Metadata__r.Team_Id__c, Research_Document_Metadata__r.Title__c, Research_Document_Metadata__r.UPS_ID__c, Research_Document_Metadata__r.Insert_Completed__c, Research_Document_Metadata__r.Document_Type__c, Research_Document_Metadata__r.Abstract__c, Research_Document_Metadata__r.Author_List__c, Research_Document_Metadata__r.HTML_Abstract__c, Research_Document_Metadata__r.Primary_Ticker__c, Research_Document_Metadata__r.Insert_Completed_Datetime__c, Research_Document_Metadata__r.Short_Headline__c, Research_Document_Metadata__r.Doc_Attribution__c, Research_Document_Metadata__r.Bloomberg_Short_Headline__c, Research_Document_Metadata__r.Primary_Bloomberg_Ticker__c, Research_Document_Metadata__r.Number_of_document_topics__c, Research_Document_Metadata__r.Company__c, Research_Document_Metadata__r.IsRestricted__c, Research_Document_Metadata__r.Document_Id_Status__c, ECRD_Sort_Order__c, IsERDISent__c, Is_Abstract_Modified__c, Is_Managed__cFrom Email_Campaign_Research_Document__c  Where ID IN: requestedERCDS ORDER BY ECRD_Sort_Order__c';
+	        pLogVariables = 'ID = ' + requestedERCDS;  
+	            
+	        // Start performance logging
+	        PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getECRDWithRDMInfo', 1, pLogQuery, PerformanceLogger.LOG_SOQL, pLogVariables);
+	       
+            for(List<Email_Campaign_Research_Document__c> tempList: [Select ID,Is_Active__c, Name, Contacts_Associated__c, Document_Id__c, Email_Campaign__c, Is_Completed__c, Is_Smart_Filter_Recommendation__c, IsSpecific__c, IsResend__c, Personalized_Abstracts__c, Research_Document_Metadata__c, Ticker_Personalization__c, Is_Added_in_Step2__c,Doc_RLink__c,
+                                                                    Research_Document_Metadata__r.Name, Research_Document_Metadata__r.Active_Flag__c, Research_Document_Metadata__r.Document_ID__c, Research_Document_Metadata__r.Headline__c, Research_Document_Metadata__r.Language_Cd__c, is_Included__c, 
+                                                                    Research_Document_Metadata__r.Periodical_Id__c, Research_Document_Metadata__r.Periodical_Name__c, Research_Document_Metadata__r.Publish_DateTime__c, Research_Document_Metadata__r.Team_Id__c, Research_Document_Metadata__r.Title__c, 
+                                                                    Research_Document_Metadata__r.UPS_ID__c, Research_Document_Metadata__r.Insert_Completed__c, Research_Document_Metadata__r.Document_Type__c, Research_Document_Metadata__r.Abstract__c, Research_Document_Metadata__r.Author_List__c, 
+                                                                    Research_Document_Metadata__r.HTML_Abstract__c, Research_Document_Metadata__r.Primary_Ticker__c, Research_Document_Metadata__r.Insert_Completed_Datetime__c, Research_Document_Metadata__r.Short_Headline__c, Research_Document_Metadata__r.Doc_Attribution__c, 
+                                                                    Research_Document_Metadata__r.Bloomberg_Short_Headline__c, Research_Document_Metadata__r.Primary_Bloomberg_Ticker__c, Research_Document_Metadata__r.Number_of_document_topics__c, Research_Document_Metadata__r.Company__c, Research_Document_Metadata__r.IsRestricted__c, 
+                                                                    Research_Document_Metadata__r.Document_Id_Status__c, ECRD_Sort_Order__c, IsERDISent__c, Is_Abstract_Modified__c, Is_Managed__c
+                                                                    From Email_Campaign_Research_Document__c  
+                                                                    Where ID IN: requestedERCDS ORDER BY ECRD_Sort_Order__c]){
+                ecrdList.addAll(tempList);     
+            }
+            
+            PerformanceLogger.Stop();
+            PerformanceLogger.Save();
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+      
+        return ecrdList;   
+    }   
+    
+    /**
+     * Method:
+     * getERDI
+     * 
+     * Summary:
+     * This method return the list of email research document item of particular email campaign item.
+     * We can pass list of campaign item id or erdi id, isECID will help to identify the type of ID.
+     * 
+     * Parameters:
+     * @ List<String> ids
+     * @ Boolean isECIID
+     * 
+     * Return Type: 
+     * @ List<sObject>
+     */
+     
+    public static List<sObject> getERDI(List<String> ids, Boolean isECIID){ 
+        transient List<Email_Research_Document_Item__c> erdiList = new List<Email_Research_Document_Item__c>();        
+        
+        try{
+            
+            String query = 'SELECT ID, Name, Abstract_Personalized__c, Date_Published__c, Document_Id__c,ERDI_Sort_Order__c,Doc_RLink__c,IsResend__c, ';
+            query += 'Email_Campaign_Item__c, Email_Campaign_Item__r.Contact__c, Email_Campaign_Research_Document__c, ';
+            query += 'Headline__c, Personalize_Abstract__c, Research_Views__c, Ticker__c, Why_Recommended__c,Is_Added_in_Step2__c,';
+            query += 'Email_Campaign_Research_Document__r.Research_Document_Metadata__r.Author_List__c,Email_Campaign_Research_Document__r.Contacts_Associated__c,';
+            query += 'Email_Campaign_Research_Document__r.Research_Document_Metadata__r.Document_Type__c,';
+            query += 'Email_Campaign_Research_Document__r.Research_Document_Metadata__c, is_Included__c,';
+            query += 'Email_Campaign_Research_Document__r.Research_Document_Metadata__r.Publish_DateTime__c,';
+            query += 'Email_Campaign_Research_Document__r.Research_Document_Metadata__r.Document_ID__c,';
+            query += 'Email_Campaign_Research_Document__r.Research_Document_Metadata__r.UPS_ID__c,';
+            query += 'Email_Campaign_Research_Document__r.Research_Document_Metadata__r.Short_Headline__c,';
+            query += 'Email_Campaign_Research_Document__r.Personalized_Abstracts__c, Is_Abstract_Modified__c, Is_Active__c';
+            query += ' FROM Email_Research_Document_Item__c';
+            
+            query += isECIID ? ' WHERE Email_Campaign_Item__c IN: ids ' : ' WHERE ID IN: ids';
+            query += ' ORDER BY IsResend__c, ERDI_Sort_Order__c';
+            
+            pLogQuery = query;
+	        pLogVariables = 'Email_Campaign_Item__c/ID = ' + ids;  
+	            
+	        // Start performance logging
+	        PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getERDI', 1, pLogQuery, PerformanceLogger.LOG_SOQL, pLogVariables);
+	        
+            for(List<Email_Research_Document_Item__c> tempList: Database.query(query)){
+                erdiList.addAll(tempList);     
+            }
+            
+            PerformanceLogger.Stop();
+            PerformanceLogger.Save();
+            
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+              
+        return getERDIWithWhyInfo(erdiList);   
+    } 
+    
+    /**
+     * Method:
+     * resetEmailCampaign
+     * 
+     * Summary:
+     * Use this method to reset your email campaign, We can use this for go back to step 1
+     *  1. Delete Inactive ERDI of Sent Email
+     *  2. Activate inactive ERDI whose email is not sent
+     *  3. Update contact associated on ECRD if ERDI is deleted
+     *  4. Reset non sent ECI for that email campaign 
+     *  5. Reset Abstarct Field 
+     *  6. Reset isDraft from Step 2
+     * 
+     * Parameters:
+     * @ String campaignID
+     * 
+     * Return Type: 
+     * @ List<sObject>
+     */
+     
+    public static List<sObject> resetEmailCampaign(String campaignID){  
+        List<EmailCampaign__c> campaignList = new List<EmailCampaign__c>();   
+        
+        try{
+            campaignList = (List<EmailCampaign__c>)getEmailCampaign(campaignID, null);              
+            EmailCampaign__c currentCampaign = campaignList[0];
+            
+            List<Sobject> recordsToUpdateERDI = new List<Sobject>();
+            List<Sobject> recordsToUpdateECI = new List<Sobject>();
+            List<Sobject> recordToDeleteERDI = new List<Sobject>();
+            List<Sobject> recordToDeleteECRD = new List<Sobject>();
+            Set<String> dupCheck = new Set<String>();
+            transient Map<String, String> tickerMap = new Map<String, String>();
+            
+            transient String ticker ;
+                
+            transient String firstName ;
+            transient String lastName ;
+            transient String accountName ;
+            transient String nickName ;
+            transient String JpLastName ; 
+            transient String toEmail ;
+            transient String currentIntroduction ;
+            
+            pLogQuery = 'Select Iteration_Added__c, Is_Previously_Sent__c, isDraft__c, Contact__r.FirstName, Contact__r.LastName, Contact__r.Account.Name, Contact__r.Displayed_Personalized_Nickname__c, Contact__r.LastNameJP__c, Contact__r.Prefer_Business_Email__c,(select ERDI_Sort_Order__c, Email_Campaign_Research_Document__r.Is_Abstract_Modified__c, Personalize_Abstract__c, Is_Abstract_Modified__c, Is_Added_in_Step2__c,Email_Campaign_Research_Document__r.ECRD_Sort_Order__c, Email_Campaign_Research_Document__r.Personalized_Abstracts__c,Email_Campaign_Research_Document__r.Is_Added_in_Step2__c, Email_Campaign_Item__c, Email_Campaign_Item__r.eMail_Sent__c, Is_Active__c,Email_Campaign_Research_Document__r.Contacts_Associated__c,Email_Campaign_Research_Document__r.Ticker_Personalization__c, Email_Campaign_Research_Document__r.IDfrom Email_Research_Document_Items__r) FROM Email_Campaign_Item__c WHERE Email_Campaign__c =: currentCampaign.ID AND eMail_Sent__c = false';
+		    pLogVariables = 'Email_Campaign__c = ' + currentCampaign.ID + ', eMail_Sent__c = false';  
+		                
+		    // Start performance logging    
+		    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'resetEmailCampaign', 1, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+		    
+            // Reset ECI
+            for(Email_Campaign_Item__c currentECI : [Select Iteration_Added__c, Is_Previously_Sent__c, isDraft__c, Contact__r.FirstName, Contact__r.LastName, Contact__r.Account.Name, Contact__r.Displayed_Personalized_Nickname__c, Contact__r.LastNameJP__c, Contact__r.Prefer_Business_Email__c, 
+														(select ERDI_Sort_Order__c, Email_Campaign_Research_Document__r.Is_Abstract_Modified__c, Personalize_Abstract__c, Is_Abstract_Modified__c, Is_Added_in_Step2__c, 
+														Email_Campaign_Research_Document__r.ECRD_Sort_Order__c, Email_Campaign_Research_Document__r.Personalized_Abstracts__c, 
+														Email_Campaign_Research_Document__r.Is_Added_in_Step2__c, Email_Campaign_Item__c, Email_Campaign_Item__r.eMail_Sent__c, Is_Active__c, 
+														Email_Campaign_Research_Document__r.Contacts_Associated__c,Email_Campaign_Research_Document__r.Ticker_Personalization__c, Email_Campaign_Research_Document__r.ID
+														from Email_Research_Document_Items__r)
+														FROM Email_Campaign_Item__c WHERE Email_Campaign__c =: currentCampaign.ID AND eMail_Sent__c = false]){
+															
+                for(Email_Research_Document_Item__c currentERDI: currentECI.Email_Research_Document_Items__r){
+	                // Reset ERDI
+            		// Used lot of if statement to optimize the code
+            		
+            		Email_Research_Document_Item__c newERDI = new Email_Research_Document_Item__c();
+            		newERDI.ID = currentERDI.ID;
+            		
+	                Boolean isERDIUpdated = false;
+	                
+	                String currentTicker = currentERDI.Email_Campaign_Research_Document__r.Ticker_Personalization__c != null ? currentERDI.Email_Campaign_Research_Document__r.Ticker_Personalization__c.trim() : '';
+	                
+	                if(tickerMap.containsKey(currentERDI.Email_Campaign_Item__c)){
+	                    tickerMap.put(currentERDI.Email_Campaign_Item__c, tickerMap.get(currentERDI.Email_Campaign_Item__c) + ' ' + currentTicker);
+	                }else{
+	                    tickerMap.put(currentERDI.Email_Campaign_Item__c, currentTicker);
+	                }
+	                
+	                if(currentERDI.ERDI_Sort_Order__c != currentERDI.Email_Campaign_Research_Document__r.ECRD_Sort_Order__c){
+	                    newERDI.ERDI_Sort_Order__c = currentERDI.Email_Campaign_Research_Document__r.ECRD_Sort_Order__c;
+	                    isERDIUpdated = true;
+	                }
+	                
+	                if(!currentERDI.Is_Active__c){
+	                    newERDI.Is_Active__c = true;
+	                    isERDIUpdated = true;
+	                }
+	                
+	                if(currentERDI.Is_Abstract_Modified__c != currentERDI.Email_Campaign_Research_Document__r.Is_Abstract_Modified__c){
+	                    newERDI.Is_Abstract_Modified__c = currentERDI.Email_Campaign_Research_Document__r.Is_Abstract_Modified__c;
+	                    isERDIUpdated = true;
+	                }
+	                
+	                if(currentERDI.Personalize_Abstract__c != currentERDI.Email_Campaign_Research_Document__r.Personalized_Abstracts__c){
+	                    newERDI.Personalize_Abstract__c = currentERDI.Email_Campaign_Research_Document__r.Personalized_Abstracts__c;
+	                    isERDIUpdated = true;
+	                }
+	                
+	                // Delete ERDI added in step 2
+	                if(currentERDI.Is_Added_in_Step2__c){
+	                    recordToDeleteERDI.add((SObject)currentERDI);
+	                    
+	                    if(!dupCheck.contains(currentERDI.Email_Campaign_Research_Document__r.ID)){
+	                        recordToDeleteECRD.add((SObject)currentERDI.Email_Campaign_Research_Document__r);
+	                        dupCheck.add(currentERDI.Email_Campaign_Research_Document__r.ID);
+	                    }
+	                }else if(isERDIUpdated){
+	                    recordsToUpdateERDI.add((Sobject)newERDI);
+	                }
+	            }
+                
+                ticker = tickerMap.containsKey(currentECI.Id) ? tickerMap.get(currentECI.Id).replaceAll('\\s+',' ') : '';
+                
+                firstName = (currentECI.Contact__r.FirstName == null ? '' : currentECI.Contact__r.FirstName);
+                lastName = (currentECI.Contact__r.LastName == null ? '' : currentECI.Contact__r.LastName);
+                accountName = (currentECI.Contact__r.Account.Name == null ? '' : currentECI.Contact__r.Account.Name);
+                nickName = (currentECI.Contact__r.Displayed_Personalized_Nickname__c == null ? '' : currentECI.Contact__r.Displayed_Personalized_Nickname__c);
+                JpLastName = (currentECI.Contact__r.LastNameJP__c == null ? lastName : currentECI.Contact__r.LastNameJP__c); 
+                toEmail = (currentECI.Contact__r.Prefer_Business_Email__c == null ? '' : currentECI.Contact__r.Prefer_Business_Email__c);
+                
+                Boolean isSubjectPersonalizedMissing = false;
+                Boolean isIntroPersonalizedMissing = false;
+                
+                String subjectInLowercase = currentCampaign.Subject__c.toLowerCase();
+                
+                if( subjectInLowercase.indexOf('%firstname%') != -1 || subjectInLowercase.indexOf('%lastname%') != -1 ||subjectInLowercase.indexOf('%accountname%') != -1 || subjectInLowercase.indexOf('%nickname%') != -1 ||subjectInLowercase.indexOf('%姓%') != -1 ||subjectInLowercase.indexOf('%tickers%') != -1){ 
+                    currentECI.Subject_Personalized__c = true;  
+                    currentECI.Subject__c = currentCampaign.Subject__c != null ? currentCampaign.Subject__c.replaceAll('(?i)%FirstName%',firstName).replaceAll('(?i)%LastName%',lastName).replaceAll('(?i)%AccountName%',accountName).replaceAll('(?i)%NickName%', nickName).replaceAll('%姓%',JpLastName).replaceAll('(?i)%Tickers%', ticker) : '';
+                    
+                    if(isMissingPersonalizeText(subjectInLowercase,firstName,lastName,accountName, nickName,JpLastName,ticker) == true){
+                        isSubjectPersonalizedMissing = true; 
+                    }else{
+                        isSubjectPersonalizedMissing = false; 
+                    } 
+                }else{
+                    currentECI.Subject_Personalized__c = false;
+                    isSubjectPersonalizedMissing = false; 
+                    currentECI.Subject__c = currentCampaign.Subject__c != null ? currentCampaign.Subject__c : '';   
+                }
+                
+                currentIntroduction = currentCampaign.Introduction__c != null ? currentCampaign.Introduction__c.replaceAll('\\n', '') : '';             
+                String introInLowercase = currentIntroduction.toLowerCase();
+                
+                if(introInLowercase.indexOf('%firstname%') != -1 || introInLowercase.indexOf('%lastname%') != -1 ||introInLowercase.indexOf('%accountname%') != -1 || introInLowercase.indexOf('%nickname%') != -1||introInLowercase.indexOf('%姓%') != -1 ||introInLowercase.indexOf('%emailaddress%') != -1 || introInLowercase.indexOf('%tickers%') != -1 ){
+                    //system.debug('---currentIntroduction-----' + currentIntroduction);
+                    currentECI.Introduction_Personalized__c = true;
+                    currentECI.Introduction_Long__c = currentIntroduction.replaceAll('(?i)%FirstName%',firstName).replaceAll('(?i)%LastName%',lastName).replaceAll('(?i)%AccountName%',accountName).replaceAll('(?i)%NickName%', nickName).replaceAll('%姓%',JpLastName).replaceAll('(?i)%EmailAddress%',toEmail).replaceAll('(?i)%Tickers%', ticker);
+                    
+                    if(isMissingPersonalizeText(introInLowercase,firstName,lastName,accountName, nickName,JpLastName, ticker) == true){
+                        isIntroPersonalizedMissing = true; 
+                    }else{
+                        isIntroPersonalizedMissing = false; 
+                    }                   
+                }else{
+                    currentECI.Introduction_Personalized__c = false;
+                    isIntroPersonalizedMissing = false; 
+                    currentECI.Introduction_Long__c = currentIntroduction;
+                    
+                }
+                
+                currentECI.isDraft__c = false;
+                
+                //EmailUtil.sendSingleEmail('dinesh.moundekar@morganstanley.com',null,false,null,String.valueOf(currentECI.Iteration_Added__c),'Before - currentIntroduction','dinesh.moundekar@morganstanley.com');
+                if(currentECI.Iteration_Added__c > 0 && currentIntroduction.indexOf('<hr class="email-separator" />') != -1){                                       
+                    
+                    //EmailUtil.sendSingleEmail('dinesh.moundekar@morganstanley.com',null,false,null,currentIntroduction.replaceAll('\\n', ''),'currentIntroduction','dinesh.moundekar@morganstanley.com');
+                    //EmailUtil.sendSingleEmail('dinesh.moundekar@morganstanley.com',null,false,null,currentIntroduction.replaceAll('\\n', ''),'Inside IF - currentIntroduction','dinesh.moundekar@morganstanley.com');
+                    /*String newIntroduction = currentIntroduction.split('<hr class="email-separator" />', 2)[0]; 
+                    currentIntroduction =  currentIntroduction.split('<hr class="email-separator" />', 2)[1];*/
+                    
+                    String newIntroduction = '';
+                    String oldIntroduction = '';
+                    
+                    Integer iterationCount = (Integer)currentCampaign.Iteration__c - (Integer)currentECI.Iteration_Added__c;
+                    
+                    for(String currentText : currentIntroduction.split('<hr class="email-separator" />')){
+                    	if(iterationCount >= 0){
+                    		if(newIntroduction == ''){
+                    			newIntroduction = currentText;
+                    		}else{
+                    			newIntroduction +=  '<hr class="email-separator" />' + currentText;
+                    		}
+                    	}else{
+                    		if(oldIntroduction == ''){
+                    			oldIntroduction = currentText;
+                    		}else{
+                    			oldIntroduction +=  '<hr class="email-separator" />' + currentText;
+                    		}
+                    	}
+                    	
+                    	iterationCount --;
+                    }                     
+                    
+                    currentIntroduction = oldIntroduction;
+                    introInLowercase = newIntroduction.toLowerCase();
+                     
+                    currentIntroduction = currentIntroduction.replaceAll('(?<=<span id="startToField"></span>).*?(?=<span id="endToField"></span>)', '');
+                    //	28 APR  2015    :       Dinesh M    :       QC 3522, replacing ticker with blank for new contact
+                    currentIntroduction = currentIntroduction.replaceAll('(?i)%FirstName%','').replaceAll('(?i)%LastName%','').replaceAll('(?i)%AccountName%','').replaceAll('(?i)%NickName%', '').replaceAll('%姓%','').replaceAll('(?i)%EmailAddress%','').replaceAll('(?i)%Tickers%','');
+                    currentIntroduction = currentIntroduction.replaceAll('<span id="startSubjectField"></span><br /><b>Subject: </b>\\s+<span id="endSubjectField"></span>', '<span id="startSubjectField"></span><span id="endSubjectField"></span>');
+                    
+                    if(introInLowercase.indexOf('%firstname%') != -1 || introInLowercase.indexOf('%lastname%') != -1 ||introInLowercase.indexOf('%accountname%') != -1 || introInLowercase.indexOf('%nickname%') != -1||introInLowercase.indexOf('%姓%') != -1 ||introInLowercase.indexOf('%emailaddress%') != -1|| introInLowercase.indexOf('%tickers%') != -1){
+                        currentECI.Introduction_Personalized__c = true;
+                        newIntroduction = newIntroduction.replaceAll('(?i)%FirstName%',firstName).replaceAll('(?i)%LastName%',lastName).replaceAll('(?i)%AccountName%',accountName).replaceAll('(?i)%NickName%', nickName).replaceAll('%姓%',JpLastName).replaceAll('(?i)%EmailAddress%',toEmail).replaceAll('(?i)%Tickers%', ticker);
+                        
+                        if(isMissingPersonalizeText(introInLowercase,firstName,lastName,accountName, nickName,JpLastName,ticker) == true){
+                            isIntroPersonalizedMissing = true; 
+                        }else{
+                            isIntroPersonalizedMissing = false; 
+                        }
+                    }else{
+                        currentECI.Introduction_Personalized__c = false;
+                        isIntroPersonalizedMissing = false; 
+                    }
+                    
+                    currentIntroduction = newIntroduction + '<hr class="email-separator" />' + currentIntroduction;
+                    
+                    currentECI.Introduction_Long__c = currentIntroduction;
+                }    
+                
+                if(isIntroPersonalizedMissing || isSubjectPersonalizedMissing){
+                    currentECI.Missing_Personalize_Text__c = true;
+                }else{
+                    currentECI.Missing_Personalize_Text__c = false;
+                }
+                
+                currentECI.From__c = currentCampaign.From__c;
+                currentECI.From_FirstName__c = currentCampaign.From_FirstName__c;
+                currentECI.From_LastName__c = currentCampaign.From_LastName__c;
+                
+                currentECI.Step2_Introduction_Personalized__c = false;
+                currentECI.Step2_Subject_Personalized__c = false;
+                currentECI.Footer__c = currentCampaign.Footer__c != null ? currentCampaign.Footer__c : '';  
+                
+                currentIntroduction = null;
+                ticker = null;
+                firstName = null;
+                lastName = null;
+                accountName = null;
+                nickName = null;
+                JpLastName = null;
+                toEmail = null;
+                
+                system.debug('---current-HeapSize---' + Limits.getHeapSize() + '-----List Size---' + recordsToUpdateECI.size());
+                
+                if(Limits.getHeapSize() < 5000000){         
+                    recordsToUpdateECI.add((SObject)currentECI);                    
+                }else{
+                    system.debug('---current-HeapSize-Should Decrease--' + Limits.getHeapSize() + '-----List Size---' + recordsToUpdateECI.size());
+                                        
+                    updateRecords(recordsToUpdateECI);
+                    updateRecords(recordsToUpdateERDI);
+                    
+                    for(Email_Campaign_Item__c currentECI1 : (List<Email_Campaign_Item__c>)recordsToUpdateECI){
+                        currentECI1.Introduction_Long__c = '';
+                        currentECI1.Subject__c = '';
+                        currentECI1.Footer__c = '';
+                    }                    
+            		
+            		recordsToUpdateERDI.clear();            
+                    recordsToUpdateECI.clear();
+                    recordsToUpdateECI.add((SObject)currentECI);
+                    currentECI = null;
+                }
+            }
+            
+            PerformanceLogger.Stop();
+            PerformanceLogger.Save();
+            
+            // Finally did dml update/delete
+            updateRecords(recordsToUpdateECI);
+            updateRecords(recordsToUpdateERDI);
+            
+            deleteRecords(recordToDeleteECRD);
+            deleteRecords(recordToDeleteERDI);
+            
+            recordsToUpdateECI = null;
+            recordsToUpdateERDI = null;
+            recordToDeleteERDI = null;
+            recordToDeleteECRD = null;
+            tickerMap = null;           
+               
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+      
+        return campaignList;
+    }  
+      
+    
+    /**
+     * Method:
+     * getSmartEmailPreview
+     * 
+     * Summary:
+     * This method return the SmartEmail Preview information in Wrapper, It will contain the information of ECI, ERDI and reader ship with rlink url.
+     * 
+     * Parameters:
+     * @ String eciID
+     * 
+     * Return Type: 
+     * @ SmartEmailWrappers.SmartEmailPreview
+     */
+     
+    public static SmartEmailWrappers.SmartEmailPreview getSmartEmailPreview(String eciID){          
+        SmartEmailWrappers.SmartEmailPreview smartEmailPreviewWrapper = null;       
+        
+        try{
+            List<Email_Campaign_Item__c> currentECIList = (List<Email_Campaign_Item__c>) getEmailCampaignItemsByECIID(eciId);
+            
+            //Check current ECI is valid
+            if(currentECIList != null && currentECIList.size() > 0){
+                Email_Campaign_Item__c currentECI = currentECIList[0];
+                
+                List<SmartEmailWrappers.EmailCampaignResearch> erdiReadershipList = new List<SmartEmailWrappers.EmailCampaignResearch>();
+                Set<String> uniqueRDMIDSet = new Set<String>();
+                Map<Id,SmartEmailWrappers.EmailCampaignResearch> mapResearchDocWithEmails = new Map<Id,SmartEmailWrappers.EmailCampaignResearch>();
+                Set<String> rdmIDSet = new Set<String>();
+                
+                //Get all ERDI
+                for(Email_Research_Document_Item__c currentERDI : (List<Email_Research_Document_Item__c>) getERDI(new List<String>{eciID}, true)){
+                    if(currentERDI.Is_Active__c && currentERDI.is_Included__c){                                                     
+                        String docType = currentERDI.Email_Campaign_Research_Document__r.Research_Document_Metadata__r.Document_Type__c;
+                        String upsID = currentERDI.Email_Campaign_Research_Document__r.Research_Document_Metadata__r.UPS_ID__c;
+                        String rLink = DataInterestUtil.getrLinkValue(docType, upsID);
+                        
+                        //insert ERDI in wrapper list
+                        mapResearchDocWithEmails.put(currentERDI.Email_Campaign_Research_Document__r.Research_Document_Metadata__c, new SmartEmailWrappers.EmailCampaignResearch(currentERDI, rLink));
+                        rdmIDSet.add(currentERDI.Email_Campaign_Research_Document__r.Research_Document_Metadata__c);
+                    }
+                }
+                
+                //Get all readership of erdi
+                for(Readership__c currentReadership : (List<Readership__c>)getReaderships(rdmIDSet, currentECI.Email_Queue_Batch__r.Blastmail_Transaction_ID__c, currentECI.Contact__c)){
+                    if(mapResearchDocWithEmails.containsKey(currentReadership.Research_Document_Metadata__c)){                      
+                        mapResearchDocWithEmails.get(currentReadership.Research_Document_Metadata__c).setReaderShip(currentReadership); 
+                        
+                        //Insert Readership in wrapper list 
+                        if(!uniqueRDMIDSet.contains(currentReadership.Research_Document_Metadata__c)){
+                            uniqueRDMIDSet.add(currentReadership.Research_Document_Metadata__c);
+                        }   
+                    }
+                }
+                
+                //Create readership wrapper
+                erdiReadershipList.addAll(mapResearchDocWithEmails.values());
+                
+                //Create smartemail wrapper
+                smartEmailPreviewWrapper = new SmartEmailWrappers.SmartEmailPreview(currentECI, erdiReaderShipList);
+            }
+            
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+      
+        return smartEmailPreviewWrapper;   
+    }      
+    
+    /**
+     * Method:
+     * createDefaultERDI
+     * 
+     * Summary:
+     * This method Will Create Default ERDI on 1. Add Contact 2. Add Document 3. Restore Default
+     * Pass Empty list to create default erdi for all the doc and contact
+     * 
+     * Parameters:
+     * @ List<List<SObject>> ecrdAndeciIdList
+     * @ String emailCampaignID
+     * 
+     * Return Type: 
+     * @ List<SObject>
+     */
+     
+    public static List<SObject> createDefaultERDI(List<List<SObject>> ecrdAndeciList, String emailCampaignID, String docsStarRatings, String region, String resultRange, String fromEmail){
+        List<SObject> erdi = new List<SObject>();
+        Boolean isAllDocSpecific = true;
+        Decimal stars = 1;
+        
+        System.debug('ecrdAndeciList: ' + ecrdAndeciList);
+        
+        try{  
+                    
+            Map<Id,Id> mapContactIdToECI = new Map<Id,Id>();
+            List<Email_Campaign_Research_Document__c> specificECRDIDList = new List<Email_Campaign_Research_Document__c>();
+            Map<Id,Email_Campaign_Research_Document__c> mapERDI_to_ECRD = new Map<Id,Email_Campaign_Research_Document__c>();
+            List<Email_Research_Document_Item__c> erdiToInsert = new List<Email_Research_Document_Item__c>();
+            
+            List<Email_Campaign_Item__c> eciList = new List<Email_Campaign_Item__c>();
+            List<Email_Campaign_Research_Document__c> ecrdList = new List<Email_Campaign_Research_Document__c>();
+            
+            //ecrdAndeciList contains List of ECI and ECRD, ECRD will be at 0th position and ECI will be on 1st position
+            eciList = (List<Email_Campaign_Item__c>)ecrdAndeciList[1];
+            ecrdList = (List<Email_Campaign_Research_Document__c>)ecrdAndeciList[0];
+            
+            set<Id> setRDM = new set<Id>(); 
+            
+            // Get All ECI if passed ECI list is empty
+            if(eciList == null || eciList.size() <= 0){
+            	pLogQuery = 'Select Contact__c From Email_Campaign_Item__c Where Email_Campaign__c =: emailCampaignID AND eMail_Sent__c = false';
+			    pLogVariables = 'Email_Campaign__c = ' + emailCampaignID + ', eMail_Sent__c = false';  
+			                
+			    // Start performance logging    
+			    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'createDefaultERDI', 1, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+		    
+                eciList = [Select Contact__c From Email_Campaign_Item__c Where Email_Campaign__c =: emailCampaignID AND eMail_Sent__c = false];
+                
+                PerformanceLogger.Stop();
+            }
+            
+            for(Email_Campaign_Item__c eci : eciList){ 
+                mapContactIdToECI.put(eci.Contact__c, eci.id);                  
+            }
+            
+            // GET all ECRD if passed ECRD list is empty
+            if(ecrdList == null || ecrdList.size() <= 0){
+            	pLogQuery = 'Select Personalized_Abstracts__c, is_Included__c, Is_Active__c, Is_Abstract_Modified__c, ECRD_Sort_Order__c, IsResend__c, IsSpecific__c, Research_Document_Metadata__c From Email_Campaign_Research_Document__c Where Is_Completed__c = false AND Email_Campaign__c =: emailCampaignID ';
+			    pLogVariables = 'Is_Completed__c = false AND Email_Campaign__c = ' + emailCampaignID;  
+			                
+			    // Start performance logging    
+			    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'createDefaultERDI', 2, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+		    
+                ecrdList = [Select Personalized_Abstracts__c, is_Included__c, Is_Active__c, Is_Abstract_Modified__c, ECRD_Sort_Order__c, IsResend__c, IsSpecific__c, Research_Document_Metadata__c From Email_Campaign_Research_Document__c Where Is_Completed__c = false AND Email_Campaign__c =: emailCampaignID ];
+                
+                PerformanceLogger.Stop();
+            }
+                    
+            for(Email_Campaign_Research_Document__c ecrd : ecrdList){
+                if(ecrd.IsSpecific__c == false){
+                    mapERDI_to_ECRD.put(ecrd.Research_Document_Metadata__c, ecrd);
+                }else{
+                    specificECRDIDList.add(ecrd);
+                }                    
+            }
+            
+            setRDM.addAll(mapERDI_to_ECRD.keyset());
+            
+                        
+            //Query EC to read and update Default Doc Star Rating
+            pLogQuery = 'select From__c, Default_Doc_Star_Rating__c from EmailCampaign__c where Id = :emailCampaignID';
+		    pLogVariables = 'Id = ' + emailCampaignID;  
+		                
+		    // Start performance logging    
+		    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'createDefaultERDI', 3, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+            List<EmailCampaign__c> ec = [select From__c, Default_Doc_Star_Rating__c from EmailCampaign__c where Id = :emailCampaignID];
+            PerformanceLogger.Stop();
+            
+            if(ec.size()>0)
+            {
+                if((docsStarRatings != null) && (docsStarRatings!=''))
+                {
+                    stars = Decimal.valueOf(docsStarRatings);
+                    ec[0].Default_Doc_Star_Rating__c = stars;
+                    update ec[0];
+                }
+                else if(ec[0].Default_Doc_Star_Rating__c != null)
+                { 
+                    stars = ec[0].Default_Doc_Star_Rating__c;
+                }
+            }
+                        
+            
+            if(fromEmail.equalsIgnoreCase(SmartEmailSettings__c.getValues('EpubEmailAddress').Value__c)){
+            	Integer docPerContact = Integer.valueOf(SmartEmailSettings__c.getValues('DocPerContactForEpubResearchPicker').Value__c);
+            	
+            	String whereCondition = ' Stars__c >=' + stars + ' ';
+	            whereCondition += getResearchPickerPublishDateCondition(resultRange);   
+	            
+	            whereCondition +=  'AND Research_Document_Metadata__r.Active_Flag__c = true ';
+	            if(region != DataUtil.ALL_REGION){
+	                regionRelatedResDocIds = T1C_DataUtil.searchResearchDocWithRegion(region);
+	                whereCondition += 'AND Research_Document_Metadata__r.Team_Id__c in : regionRelatedResDocIds ';
+	            }
+	           	            
+	            //Get All top 10 CDM for contacts
+	            List<ID> selectedContactList = new List<ID>();
+	            selectedContactList.addAll(mapContactIdToECI.keyset());
+	            
+	            String rdmQuery = 'Select ID, (SELECT Research_Document_Metadata__c ';
+	            rdmQuery += 'FROM Contact_Document_Matches__r WHERE ' + whereCondition + ' order by Stars__c DESC, Publish_DateTime__c DESC, Headline__c ASC, Id DESC nulls last limit ' + docPerContact + ') FROM contact WHERE ID IN : selectedContactList';
+            
+            	// Create Recommended ERDI for Epub User
+            	
+                pLogQuery = rdmQuery;
+			    pLogVariables = 'whereCondition = ' + whereCondition;  
+			                
+			    // Start performance logging    
+			    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'createDefaultERDI', 4, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+			                 
+            	for(Contact currentContact : Database.query(rdmQuery)){
+	                String eciId = mapContactIdToECI.get(currentContact.ID);
+	                
+	                for(Contact_Document_Match__c cdm :  currentContact.Contact_Document_Matches__r){
+		                if(isAllDocSpecific){
+		                    isAllDocSpecific = false;
+		                } 	 
+		                
+		                if(mapERDI_to_ECRD.get(cdm.Research_Document_Metadata__c) == null){
+		                	continue;
+		                }                      
+		                
+		                erdiToInsert.add(
+		                    new Email_Research_Document_Item__c(
+		                        Email_Campaign_Item__c = eciId
+		                        ,Email_Campaign_Research_Document__c = (mapERDI_to_ECRD.get(cdm.Research_Document_Metadata__c)).id,
+		                        ERDI_Sort_Order__c = (mapERDI_to_ECRD.get(cdm.Research_Document_Metadata__c)).ECRD_Sort_Order__c,
+		                        IsResend__c = (mapERDI_to_ECRD.get(cdm.Research_Document_Metadata__c)).IsResend__c,
+		                        Personalize_Abstract__c = (mapERDI_to_ECRD.get(cdm.Research_Document_Metadata__c)).Personalized_Abstracts__c,
+		                        is_Included__c = (mapERDI_to_ECRD.get(cdm.Research_Document_Metadata__c)).is_Included__c,
+		                        Is_Active__c = (mapERDI_to_ECRD.get(cdm.Research_Document_Metadata__c)).Is_Active__c,
+		                        Is_Abstract_Modified__c = (mapERDI_to_ECRD.get(cdm.Research_Document_Metadata__c)).Is_Abstract_Modified__c
+		                ));
+	                }
+	            }
+	            
+	            PerformanceLogger.Stop();
+            	
+            }else{
+            	// Create Recommended ERDI for non Epub User   
+            	pLogQuery = 'Select Contact__c, Research_Document_Metadata__c, Team__r.Research_Team__c, Ticker__c, Stars__c From Contact_Document_Match__c  Where Contact__c IN : mapContactIdToECI.keyset() AND Research_Document_Metadata__c IN :setRDM AND Stars__c >= :stars ';
+			    pLogVariables = 'Contact__c IN ' + mapContactIdToECI.keyset() + ', Research_Document_Metadata__c IN  ' + setRDM + ', Stars__c >= ' + stars;  
+			                
+			    // Start performance logging    
+			    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'createDefaultERDI', 5, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+			             
+	            for(Contact_Document_Match__c cdm : [Select Contact__c, Research_Document_Metadata__c, Team__r.Research_Team__c, Ticker__c, Stars__c From Contact_Document_Match__c  Where Contact__c IN : mapContactIdToECI.keyset() AND Research_Document_Metadata__c IN :setRDM AND Stars__c >= :stars ]){
+	                if(isAllDocSpecific){
+	                    isAllDocSpecific = false;
+	                } 
+	                       
+	                String eciId = mapContactIdToECI.get(cdm.Contact__c);
+	                erdiToInsert.add(
+	                    new Email_Research_Document_Item__c(
+	                        Email_Campaign_Item__c = eciId
+	                        ,Email_Campaign_Research_Document__c = (mapERDI_to_ECRD.get(cdm.Research_Document_Metadata__c)).id,
+	                        ERDI_Sort_Order__c = (mapERDI_to_ECRD.get(cdm.Research_Document_Metadata__c)).ECRD_Sort_Order__c,
+	                        IsResend__c = (mapERDI_to_ECRD.get(cdm.Research_Document_Metadata__c)).IsResend__c,
+	                        Personalize_Abstract__c = (mapERDI_to_ECRD.get(cdm.Research_Document_Metadata__c)).Personalized_Abstracts__c,
+	                        is_Included__c = (mapERDI_to_ECRD.get(cdm.Research_Document_Metadata__c)).is_Included__c,
+	                        Is_Active__c = (mapERDI_to_ECRD.get(cdm.Research_Document_Metadata__c)).Is_Active__c,
+	                        Is_Abstract_Modified__c = (mapERDI_to_ECRD.get(cdm.Research_Document_Metadata__c)).Is_Abstract_Modified__c
+	                ));
+	            }
+	            
+	            PerformanceLogger.Stop();
+            }
+            
+            // Create Specific ERDI
+            for(Email_Campaign_Item__c currentECI : eciList){
+                for(Email_Campaign_Research_Document__c currentECRD : specificECRDIDList){
+                    erdiToInsert.add(
+                        new Email_Research_Document_Item__c(
+                            Email_Campaign_Item__c = currentECI.ID
+                            ,Email_Campaign_Research_Document__c = currentECRD.ID,
+                            ERDI_Sort_Order__c = currentECRD.ECRD_Sort_Order__c,
+                            IsResend__c = currentECRD.IsResend__c,
+                            Personalize_Abstract__c = currentECRD.Personalized_Abstracts__c,
+                            is_Included__c = currentECRD.is_Included__c,
+                            Is_Active__c = currentECRD.Is_Active__c,
+                            Is_Abstract_Modified__c = currentECRD.Is_Abstract_Modified__c
+                    ));
+                }
+            }
+            
+            System.debug('erdiToInsert: ' + erdiToInsert);
+            
+            pLogQuery = 'SELECT ID FROM Email_Research_Document_Item__c WHERE Email_Campaign_Research_Document__c IN: ecrdList AND Email_Campaign_Item__c IN: eciList';
+		    pLogVariables = 'Email_Campaign_Research_Document__c IN ' + ecrdList + ', Email_Campaign_Item__c IN ' + eciList;  
+		                
+		    // Start performance logging    
+		    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'createDefaultERDI', 6, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+		    
+            // Delete old ERDI
+            List<Email_Research_Document_Item__c> erdiToDelete = [SELECT ID FROM Email_Research_Document_Item__c WHERE Email_Campaign_Research_Document__c IN: ecrdList AND Email_Campaign_Item__c IN: eciList];
+            PerformanceLogger.Stop();
+            PerformanceLogger.Save();
+            
+            deleteRecords(erdiToDelete);
+            
+            System.debug('----CreateDefaultERDI---erdiToInsert---' + erdiToInsert.size() + '--eciList--' + eciList.size() + '--ecrdList-' + ecrdList.size());
+            
+            // Insert New ERDI
+            erdi = insertRecords((List<SObject>)erdiToInsert);
+            
+            
+            
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+        
+        for(Email_Research_Document_Item__c currentERDI : (List<Email_Research_Document_Item__c>)erdi){
+            currentERDI.ERDI_Sort_Order__c = null;
+            currentERDI.IsResend__c = null;
+            currentERDI.Personalize_Abstract__c = null;
+            currentERDI.is_Included__c = null;
+            currentERDI.Is_Active__c = null;
+            currentERDI.Is_Abstract_Modified__c = null;
+        }
+        
+        return erdi;
+    }
+    
+    /**
+     * Method:
+     * getWhyPopUp
+     * 
+     * Summary:
+     * This method Query interest for particular contact and topic.
+     * 
+     * Parameters:
+     * @ String contactID
+     * @ String topicName
+     * 
+     * Return Type: 
+     * @ List<SObject>
+     */
+     
+    public static List<SObject> getWhyPopUp(String contactID, String topicName){
+        List<Interest__c> interestList = new List<Interest__c>();
+        system.debug('getWhyPopUp: contactID - ' + contactID + ' topicName- ' + topicName );        
+        
+        try{
+            
+            String query = '';
+            query += 'Select Topic__c, i.Topic__r.Type__c, Topic__r.Research_Team__r.Name , i.Topic__r.Company__r.Name,';
+            query += 'Topic__r.Company__r.Bloomberg_Ticker__c, CreatedBy.Name, i.Topic__r.Name, i.Name, ';
+            //Jira-4869
+            //query += 'i.CreatedDate, i.Contact__r.Name,Votes_Note_2__c, Votes_Note_1__c,Trades_Note_2__c, Trades_Note_1__c, ';
+            
+            query += 'i.CreatedDate, i.Contact__r.Name,Votes_Note_2__c, Votes_Note_1__c, ';
+            //Jira-4869            
+            query += 'Readership_Note_2__c, Readership_Note_1__c, Interactions_Note_2__c, Interactions_Note_1__c, ';
+            query += 'Holdings_Note_2__c, Holdings_Note_1__c, Model_Exec_Date__c, ManualCreatedBy__c, LastModifiedBy.Name ';
+            query += 'From Interest__c i ';
+            query += 'where (i.TopicName__c =: topicName or TopicResearchTeamName__c =: topicName) and Override__c != 0 and i.Contact__c = : contactId';
+            
+            system.debug('query - ' + query);
+            
+                       
+            pLogQuery = query;
+	        pLogVariables = 'TopicName__c = ' + topicName + ', Contact__c = ' + contactId;  
+	            
+	        // Start performance logging
+	        PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getWhyPopUp', 1, pLogQuery, PerformanceLogger.LOG_SOQL, pLogVariables);
+	        
+            interestList = Database.query(query);
+            
+            PerformanceLogger.Save();
+            PerformanceLogger.Stop();
+            if(interestList.size() <= 0 ){
+                interestList.add(new Interest__c(TopicName__c = 'Interest Has Been Removed'));
+            }
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+        
+        return interestList;
+    }
+    
+    /**
+     * Method:
+     * cloneEmailCampaign
+     * 
+     * Summary:
+     * This method will create new Email campaign with all its related child records.
+     *  1.  Clone only sent ECI, ERDI and ECRD
+     *  2.  Remove duplicate ECI, ECRD
+     * 
+     * Parameters:
+     * @ String campaignID
+     * @ String eciID
+     * 
+     * Return Type: 
+     * @ List<SObject>
+     */
+     
+    public static List<SObject> cloneEmailCampaign(String campaignID, String eciID, String isStep2){
+        List<EmailCampaign__c> clonedEmailCampaign = new List<EmailCampaign__c>();      
+        
+        try{
+            
+            String clonedCampaignID ; 
+            
+            List<Email_Campaign_Item__c> tobeClonedECI = new List<Email_Campaign_Item__c>();
+            List<Email_Campaign_Research_Document__c> tobeClonedECRD = new List<Email_Campaign_Research_Document__c>();
+            List<Email_Research_Document_Item__c> clonedERDI = new List<Email_Research_Document_Item__c>();
+            
+            // Clone And Insert Existing Email campaign         
+            clonedEmailCampaign = (List<EmailCampaign__c>)new List<SObject>{getEmailCampaign(campaignID, null)[0]}.deepClone(false, false, false);
+            String currentUserTimeZone = getUserTimeZone(clonedEmailCampaign[0].OwnerId);
+            
+            DateTime clickedSentEmailTime;
+            String modifiedSubject = clonedEmailCampaign[0].Subject__c != null ? clonedEmailCampaign[0].Subject__c : '';
+            
+            If(currentLoggedinUserID != null) {clonedEmailCampaign[0].OwnerID = currentLoggedinUserID;}
+            clonedEmailCampaign[0].Subject__c = modifiedSubject.startsWith('FW:') ? modifiedSubject : 'FW: ' + modifiedSubject;
+            
+            clonedEmailCampaign[0].isDraft__c = false;
+            if(clonedEmailCampaign[0].Iteration__c != null){
+            	clonedEmailCampaign[0].Iteration__c ++;
+            }else{
+            	clonedEmailCampaign[0].Iteration__c = 0;
+            }
+            
+            clonedEmailCampaign[0].Is_Clone__c = true;
+            clonedEmailCampaign[0].Is_ForcedResetECI_Active__c = false;
+            clonedEmailCampaign[0].Campaign_Date__c = System.now();
+            clonedEmailCampaign[0].Subject__c = clonedEmailCampaign[0].Subject__c.length() > 255 ? clonedEmailCampaign[0].Subject__c.subString(0, 255) : clonedEmailCampaign[0].Subject__c;
+            //insertRecords(clonedEmailCampaign);
+            insert clonedEmailCampaign;
+            system.debug('----clonedEmailCampaign-----' + clonedEmailCampaign);
+            
+            clonedCampaignID = clonedEmailCampaign[0].ID;           
+            
+            // Clone And Insert Existing Email campaign Item
+            if(isStep2.equalsIgnoreCase('true')){
+                tobeClonedECI = (List<Email_Campaign_Item__c>)getEmailCampaignItemsByECIID(eciID).deepClone(true, false, false);
+            }else{
+                tobeClonedECI = (List<Email_Campaign_Item__c>)getEmailCampaignItemsByECID(campaignID, 'true').deepClone(true, false, false);
+            }           
+            
+            system.debug('----tobeClonedECI-----' + tobeClonedECI);
+            
+            Set<String> dupCheck = new Set<String>();
+            
+            String resendIntroductionInECI = '<br /><hr class="email-separator" />';
+            resendIntroductionInECI += '<b>From: </b>' + clonedEmailCampaign[0].From_LastName__c + ', ' + clonedEmailCampaign[0].From_FirstName__c + ' <span style="color: blue">[' + clonedEmailCampaign[0].From__c + ']</span>';
+            
+            
+            List<Email_Campaign_Item__c> clonedECI = new List<Email_Campaign_Item__c>();
+            String clickedECIContact = '';
+            String formatedDate = '';
+            
+            for(Email_Campaign_Item__c currentECI : tobeClonedECI){
+                 
+                system.debug('----currentECI-----' + currentECI);
+                
+                if(String.valueOf(currentECI.ID).equalsIgnoreCase(eciID)){
+                    clickedSentEmailTime = currentECI.Email_Sent_TimeStamp__c;
+                    formatedDate =  clickedSentEmailTime.format('EEEE, MMMM dd, yyyy hh:mm a z', currentUserTimeZone);
+                    resendIntroductionInECI += '<br /><b>Sent: </b>' + formatedDate;
+                    clickedECIContact = String.valueOf(currentECI.Contact__c);
+                }
+                
+                if(!dupCheck.contains(String.valueOf(currentECI.contact__c)) && currentECI.eMail_Sent__c == true){ 
+                    currentECI.ID = null;                   
+                    //currentECI.Previous_Subject__c = currentECI.Subject__c;
+                    
+                    if(isStep2.equalsIgnoreCase('true') ){
+                        String toField = currentECI.Contact__r.Prefer_Business_Email__c != null ? currentECI.Contact__r.Prefer_Business_Email__c : '';
+                        String modifiedToInECI = '<span id="startToBeRemoved"></span><br /><b>To: </b><span style="color: blue">' + toField + '</span>';
+                        String modifiedSubjectInECI = currentECI.Subject__c != null ? currentECI.Subject__c : '';
+                        String modifiedIntroInECI = currentECI.Introduction_Long__c != null ? currentECI.Introduction_Long__c : '';
+                        
+                        List<String> splittedIntroInECI = modifiedIntroInECI.split('<hr class="email-separator" />', 2);
+                        String includedFooterInECIIntro = '';
+                        String footeronECI = '';
+                        
+                        footeronECI = currentECI.Footer__c != null ? currentECI.Footer__c : '';
+                        
+                        if(splittedIntroInECI.size() > 1){
+                            includedFooterInECIIntro = splittedIntroInECI[0] +  '<br /><br />' + footeronECI + '<br /><br /><hr class="email-separator" />' + splittedIntroInECI[1];
+                        }else{
+                            includedFooterInECIIntro = splittedIntroInECI[0] +  '<br /><span id="docPlaceHolder"></span><br /><br />' + footeronECI;
+                            //includedFooterInECIIntro = splittedIntroInECI[0] +  '<br /><br /><span id="docPlaceHolder"></span><br /><br /><span id="footerSection">' + footeronECI + '</span>';
+                        }
+                        String resendIntroductionInCurrentECI = resendIntroductionInECI + modifiedToInECI + '<br /><b>Subject: </b>' + modifiedSubjectInECI + '<span id="endToBeRemoved"></span>';
+                        resendIntroductionInCurrentECI += '<br />' + includedFooterInECIIntro;
+                                        
+                        currentECI.Subject__c = modifiedSubjectInECI.startsWith('FW:') ? modifiedSubjectInECI : 'FW: ' + modifiedSubjectInECI;
+                        //currentECI.Introduction__c = resendIntroduction;
+                        currentECI.Introduction_Long__c = resendIntroductionInCurrentECI;
+                        //currentECI.Introduction_Long__c = resendIntroductionInCurrentECI.length() >= 60000 ? resendIntroductionInCurrentECI.subString(0, 60000) : resendIntroductionInCurrentECI;
+                    }
+                    
+                    currentECI.Subject__c = currentECI.Subject__c.length() > 255 ? currentECI.Subject__c.subString(0, 255) : currentECI.Subject__c;
+                    currentECI.Email_Campaign__c = clonedCampaignID;
+                    currentECI.eMail_Sent__c = false;
+                    currentECI.Email_Sent_TimeStamp__c = null;
+                    currentECI.eMail_Sent_Date_Time__c = null;
+                    currentECI.isDraft__c = false;
+                    currentECI.Email_Queue_Batch__c = null;
+                    currentECI.Introduction_Personalized__c = false;
+                    currentECI.Step2_Introduction_Personalized__c = false;
+                    currentECI.Step2_Subject_Personalized__c = false;
+                    currentECI.Subject_Personalized__c = false;
+                    currentECI.Is_Previously_Sent__c = true;
+                    
+                    dupCheck.add(String.valueOf(currentECI.contact__c));
+                    clonedECI.add(currentECI);
+                    
+                    system.debug('----ValidcurrentECI-----' + currentECI);
+                }
+            }
+            
+            // Update Campaign with proper email sent time
+            String resendIntroduction = '<br /><hr class="email-separator" />';
+            resendIntroduction += '<b>From: </b>' + clonedEmailCampaign[0].From_LastName__c + ', ' + clonedEmailCampaign[0].From_FirstName__c + ' <span style="color: blue">[' + clonedEmailCampaign[0].From__c + ']</span>';
+            resendIntroduction += '<br /><b>Sent: </b>' + formatedDate; 
+            resendIntroduction += '<span id="startToField"></span><br /><b>To: </b><span style="color: blue"> %EmailAddress%</span><span id="endToField"></span>';
+            
+            String modifiedIntro = clonedEmailCampaign[0].Introduction__c != null ? clonedEmailCampaign[0].Introduction__c : '';
+            
+            List<String> splittedIntro = modifiedIntro.split('<hr class="email-separator" />', 2);
+            String includedFooterInIntro = '';
+            String footer = clonedEmailCampaign[0].Footer__c != null ? clonedEmailCampaign[0].Footer__c : '';
+            
+            if(splittedIntro.size() > 1){
+                includedFooterInIntro = splittedIntro[0] + '<br /><br />' + footer + '<br /><br /><hr class="email-separator" />' + splittedIntro[1];
+            }else{
+                includedFooterInIntro = splittedIntro[0] + '<br /><span id="docPlaceHolder"></span><br /><br />' + footer;
+                //includedFooterInIntro = splittedIntro[0] + '<br /><br /><br /><span id="docPlaceHolder"></span><br /><br /><span id="footerSection">' + footer + '</span>';
+            }
+            
+            resendIntroduction += '<span id="startSubjectField"></span><br /><b>Subject: </b>' + modifiedSubject + '<span id="endSubjectField"></span>';
+            resendIntroduction += '<br />' + includedFooterInIntro;
+            clonedEmailCampaign[0].Introduction__c = resendIntroduction;
+            //clonedEmailCampaign[0].Introduction__c = resendIntroduction.length() >= 60000 ? resendIntroduction.subString(0, 60000) : resendIntroduction;
+            
+            update clonedEmailCampaign;
+            
+            insert clonedECI;
+            
+            system.debug('----dupCheck-----' + dupCheck);
+            system.debug('----clonedECI-----' + clonedECI);
+            
+            // Create Map for Contact to ERDI and Doc/Ups ID to ERDI
+                    
+            Set<String> sentECRD = new Set<String>();
+            List<Email_Campaign_Research_Document__c> clonedECRD = new List<Email_Campaign_Research_Document__c>(); 
+            
+            Integer totalContacts = clonedECI.size();
+            
+            dupCheck.clear();
+            
+            String erdiQuery = '';
+            erdiQuery += 'SELECT Personalize_Abstract__c, Email_Campaign_Research_Document__r.Document_Id__c, Document_Id__c, Email_Campaign_Item__c, Is_Active__c, is_Included__c,ERDI_Sort_Order__c,';
+            erdiQuery += 'Email_Campaign_Research_Document__r.ID, Email_Campaign_Research_Document__r.Is_Active__c, Email_Campaign_Research_Document__r.Name, ';
+            erdiQuery += 'Email_Campaign_Research_Document__r.Contacts_Associated__c, Email_Campaign_Research_Document__r.Email_Campaign__c, Email_Campaign_Research_Document__r.Is_Completed__c, ';
+            erdiQuery += 'Email_Campaign_Research_Document__r.Is_Smart_Filter_Recommendation__c, Email_Campaign_Research_Document__r.Personalized_Abstracts__c, ';
+            erdiQuery += 'Email_Campaign_Research_Document__r.Research_Document_Metadata__c, Email_Campaign_Research_Document__r.Ticker_Personalization__c, Email_Campaign_Research_Document__r.ECRD_Sort_Order__c '; 
+            
+            erdiQuery += 'from Email_Research_Document_Item__c where Email_Campaign_Item__c =: eciID ';
+            
+            Map<ID, Decimal> step2SortingMap = new Map<ID, Decimal>();
+            
+            pLogQuery = erdiQuery;
+		    pLogVariables = 'Email_Campaign_Item__c = ' + eciID;  
+		                
+		    // Start performance logging    
+		    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'cloneEmailCampaign', 1, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+            
+            for(Email_Research_Document_Item__c currentERDI : Database.query(erdiQuery)){
+                Email_Campaign_Research_Document__c currentECRD = currentERDI.Email_Campaign_Research_Document__r;
+                String erdiWithSameAbstractKey = currentECRD.Research_Document_Metadata__c + ' - ' + currentERDI.Personalize_Abstract__c;
+                
+                if(!dupCheck.contains(String.valueOf(currentECRD.ID)) && !dupCheck.contains(erdiWithSameAbstractKey) && currentERDI.Is_Active__c && currentERDI.is_Included__c){                    
+                    // QC: 2809, Create erdi mapping for clicked ECI, Attached only those doc which are present in preview  
+                    
+                    dupCheck.add(String.valueOf(currentECRD.ID));
+                    dupCheck.add(erdiWithSameAbstractKey);
+                    
+                    if(isStep2.equalsIgnoreCase('true') ){
+                        step2SortingMap.put(currentECRD.Research_Document_Metadata__c, currentERDI.ERDI_Sort_Order__c);
+                    }
+                    
+                    currentECRD.ID = null;
+                    currentECRD.Email_Campaign__c = clonedCampaignID;
+                    currentECRD.IsResend__c = true;
+                    currentECRD.IsSpecific__c = true;
+                    currentECRD.Is_Added_in_Step2__c = false; 
+                    currentECRD.IsERDISent__c = false ;
+                    currentECRD.Is_included__c  = true ;
+                    currentECRD.Is_Managed__c  = false ;
+                    currentECRD.Is_Abstract_Modified__c  = false ;
+                    currentECRD.Contacts_Associated__c  = totalContacts;
+                    currentECRD.Is_ForcedResetERDI_Active__c = isStep2.equalsIgnoreCase('true') ? false : true;
+                    currentECRD.Personalized_Abstracts__c = currentERDI.Personalize_Abstract__c;
+                    currentECRD.Is_Active__c = true;
+                    
+                    if(currentECRD.ECRD_Sort_Order__c == -1)
+                    {
+                        currentECRD.ECRD_Sort_Order__c = currentERDI.ERDI_Sort_Order__c;
+                    }
+                    
+                    clonedECRD.add(currentECRD);                   
+                    
+                }               
+            }
+            
+            PerformanceLogger.Stop();
+            PerformanceLogger.Save();
+            
+            //system.debug('----sentECRD-----' + sentECRD);
+            system.debug('----clonedECRD-----' + clonedECRD);
+            
+            // Clone And Insert Existing ECRD, Remove dup check on the basis of ERDI abstract
+            
+            //insertRecords(clonedECRD);            
+            insert clonedECRD;
+            
+            // Clone and Insert Existing ERDI.In clone all the doc will get attached to all contacts
+            for(Email_Campaign_Item__c currentECI : clonedECI){
+                for(Email_Campaign_Research_Document__c currentECRD : clonedECRD) {
+                    Decimal currentSortOrder = 0;
+                    
+                    if(isStep2.equalsIgnoreCase('true') ){
+                        currentSortOrder = step2SortingMap.get(currentECRD.Research_Document_Metadata__c);
+                    }else{
+                        currentSortOrder = currentECRD.ECRD_Sort_Order__c;
+                    }
+                    
+                    clonedERDI.add(
+                        new Email_Research_Document_Item__c(
+                            Email_Campaign_Item__c = currentECI.ID
+                            ,Email_Campaign_Research_Document__c = currentECRD.ID,
+                            ERDI_Sort_Order__c = currentSortOrder,
+                            IsResend__c = true,
+                            Is_included__c = true ,
+                            Is_Added_in_Step2__c = false,
+                            Is_Abstract_Modified__c  = false,
+                            Personalize_Abstract__c = currentECRD.Personalized_Abstracts__c,
+                            Is_Active__c = true
+                            //Personalize_Abstract__c = docIDToerdiMap.get(currentECRD.Document_Id__c+currentECRD.Personalized_Abstracts__c).Personalize_Abstract__c
+                    ));
+                    
+                }
+            }
+            
+            system.debug('----clonedERDI-----' + clonedERDI);
+            
+            //insertRecords(clonedERDI);  
+            insert clonedERDI;          
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+        
+        return clonedEmailCampaign;
+    }
+    
+    /**
+     * Method:
+     * insertRecords
+     * 
+     * Summary:
+     * This method insert any records, convert it to sobject before passing list of records.
+     * 
+     * Parameters:
+     * @ List<SObject> recordsList
+     * 
+     * Return Type: 
+     * @ List<SObject>
+     */
+     
+    public static List<SObject> insertRecords(List<SObject> recordsList){
+        Database.Dmloptions dmlOptions = new Database.Dmloptions();
+        dmlOptions.allowFieldTruncation = true;
+        dmlOptions.optAllOrNone  = false;
+        
+        if(recordsList != null && !recordsList.isEmpty()) {          
+            Database.SaveResult[] result = database.insert(recordsList, false);
+            
+            // Process the save results
+            for(Database.SaveResult currentResult : result){  
+                        
+                if(!currentResult.isSuccess()){
+                    Database.Error err = currentResult.getErrors()[0];                
+                    String error = errorFormat.replace('{MESSAGE}', err.getMessage()).replace('{STACKTRACE}', '');
+            		throw new CustomException(error);             
+                }            
+            } 
+            
+            Util.insertErrorLogs();
+        }
+        
+        
+        return recordsList;
+    }
+    
+    /**
+     * Method:
+     * updateRecords
+     * 
+     * Summary:
+     * This method update any records, convert it to sobject before passing list of records.
+     * 
+     * Parameters:
+     * @ List<SObject> recordsList
+     * 
+     * Return Type: 
+     * @ List<SObject>
+     */
+     
+    public static List<SObject> updateRecords(List<SObject> recordsList){
+        Database.Dmloptions dmlOptions = new Database.Dmloptions();
+        dmlOptions.allowFieldTruncation = true;
+        dmlOptions.optAllOrNone  = false;
+        
+        if(recordsList != null && !recordsList.isEmpty()) {          
+            Database.SaveResult[] result = database.update(recordsList, dmlOptions);
+            
+            // Process the save results
+            for(Database.SaveResult currentResult : result){          
+                if(!currentResult.isSuccess()){
+                    Database.Error err = currentResult.getErrors()[0];                
+                    String error = errorFormat.replace('{MESSAGE}', err.getMessage()).replace('{STACKTRACE}', '');
+            		throw new CustomException(error);             
+                }            
+            } 
+            
+            Util.insertErrorLogs();
+        }
+        
+        return recordsList;
+    }
+    
+    /**
+     * Method:
+     * deleteRecords
+     * 
+     * Summary:
+     * This method delete any records, convert it to sobject before passing list of records.
+     * 
+     * Parameters:
+     * @ List<SObject> recordsList
+     * 
+     * Return Type: 
+     * @ List<SObject>
+     */
+     
+    public static List<SObject> deleteRecords(List<SObject> recordsList){
+        if(recordsList != null && !recordsList.isEmpty()) {          
+            Database.DeleteResult[] result = database.delete(recordsList, false);
+            
+            // Process the save results
+            for(Database.DeleteResult currentResult : result){          
+                if(!currentResult.isSuccess()){
+                    Database.Error err = currentResult.getErrors()[0];                
+                    String error = errorFormat.replace('{MESSAGE}', err.getMessage()).replace('{STACKTRACE}', '');
+            		throw new CustomException(error);             
+                }            
+            } 
+            
+            Util.insertErrorLogs();
+        }
+        
+        return recordsList;
+    }
+    
+    /**
+     * Method:
+     * getObjectAPIName
+     * 
+     * Summary:
+     * This method return the object API name of particular ID
+     * 
+     * Parameters:
+     * @ String id
+     * 
+     * Return Type: 
+     * @ String
+     */
+     
+    public static String getObjectAPIName(String objectId){
+        if(objectId == null || objectId.trim().length() <= 0){
+            return '';
+        }
+            
+        Id obId = Id.valueof(objectId);
+        
+        return obId.getSObjectType().getDescribe().getName();
+    }
+    
+    /**
+     * Method:
+     * isAllParametersFound
+     * 
+     * Summary:
+     * This method Compares the parameter i.e. check the if the parameter is present in passed URL or not.
+     * 
+     * Parameters:
+     * @ List<String> searchParameters 
+     * @ Map<String, String> urlParameters
+     * 
+     * Return Type: 
+     * @ Boolean
+     */
+    
+    public static Boolean isAllParametersFound(List<String> searchParameters, Map<String, String> urlParameters){
+        if(searchParameters == null || searchParameters.size() <= 0 ||urlParameters == null || urlParameters.size() <= 0){
+            system.debug('Inside If f r Null');
+            return false;
+        }
+        
+        for(String currentParam : searchParameters){
+            system.debug('In for -'+currentParam);
+            if(!urlParameters.containsKey(currentParam)){
+                system.debug('Param not contain='+currentParam);
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Method:
+     * getUserTimeZone
+     * 
+     * Summary:
+     * This method Will get the user timezone, we can modifiy this method to get more information about user.
+     * 
+     * Parameters:
+     * @ userID
+     * 
+     * Return Type: 
+     * @ String
+     */
+    
+    public static String getUserTimeZone(String userID){
+        try{    
+            return [SELECT TimeZoneSidKey FROM User WHERE ID =:userID ].TimeZoneSidKey;
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+        
+        return DataUtil.userTimeZoneKey;
+    }
+    
+    /**
+     * Method:
+     * getDelegator
+     * 
+     * Summary:
+     * This method returns the delegator objects in Smartemail step 1 of logged in user. Above method is duplicate, keep only needed one.
+     * 
+     * Parameters:
+     * @ currentUserID
+     * 
+     * Return Type: 
+     * @ List<SmartEmailWrappers.PickListWrapper> 
+     */
+     
+    public static List<sObject> getDelegator(String currentUserID){     
+        List<Employee__c> delegatorList = new List<Employee__c>();          
+        
+        try{   
+        	
+        	pLogQuery = 'Select u.Name, u.Email, u.FirstName, u.LastName ,(Select Email_Signature_Text__c, id, Show_Smart_List_Language_Filter__c, EMail__c, User__r.Email, User__r.FirstName, User__r.LastName, First_Name__c, Last_Name__c From Employees__r where Active_Flag__c = true limit 1) From User u where id=:currentUserID';
+		    pLogVariables = 'id=' + currentUserID;  
+		                
+		    // Start performance logging    
+		    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getDelegator', 1, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+		             
+            List<User> currentUserList = [  Select u.Name, u.Email, u.FirstName, u.LastName ,  
+                                            (Select Email_Signature_Text__c, id, Show_Smart_List_Language_Filter__c, EMail__c, User__r.Email, User__r.FirstName, User__r.LastName, First_Name__c, Last_Name__c From Employees__r where Active_Flag__c = true limit 1)
+                                            From User u where id=:currentUserID];
+                                            
+        	PerformanceLogger.Stop();
+                                            
+            if(currentUserList != null && currentUserList.size() > 0){
+                User currentUser = currentUserList[0];
+                
+                Map<String,String> emailEmpIdMap = new Map<String,String>();
+                List<String> emailsList = new List<String>();
+                
+                emailsList.add((currentUser.Employees__r.size() > 0 && currentUser.Employees__r[0].EMail__c <> null ? currentUser.Employees__r[0].EMail__c : currentUser.Email));
+                emailEmpIdMap.put(emailsList[0], (currentUser.Employees__r.size() > 0 ? currentUser.Employees__r[0].id : currentUser.id ));
+                                
+                Employee__c currentUserEmployee = new Employee__c();
+                
+                if(currentUserList[0].Employees__r != null && currentUserList[0].Employees__r.size() > 0){
+                    currentUserEmployee = (currentUserList[0].Employees__r)[0];
+                    currentUserEmployee.EMail__c = currentUserEmployee.EMail__c != null ? currentUserEmployee.EMail__c : currentUserList[0].EMail;
+                    currentUserEmployee.First_Name__c = currentUserEmployee.First_Name__c != null ? currentUserEmployee.First_Name__c : currentUserList[0].FirstName;
+                    currentUserEmployee.Last_Name__c = currentUserEmployee.Last_Name__c != null ? currentUserEmployee.Last_Name__c : currentUserList[0].LastName;
+                }else{
+                    currentUserEmployee.EMail__c = currentUserList[0].EMail;
+                    currentUserEmployee.First_Name__c = currentUserList[0].FirstName;
+                    currentUserEmployee.Last_Name__c = currentUserList[0].LastName;
+                    currentUserEmployee.Show_Smart_List_Language_Filter__c = false;
+                }
+                
+                delegatorList.add(currentUserEmployee); 
+                
+                pLogQuery = 'Select ed.Delegater__r.Email_Signature_Text__c, ed.Delegater__r.EMail__c, ed.Delegater__r.First_Name__c, ed.Delegater__r.Last_Name__c, ed.Delegater__r.User__r.Email From Employee_Delegation__c ed  where  ed.Delegatee__c in : currentUser.Employees__r and (ed.Delegater__r.EMail__c != null or ed.Delegater__r.User__r.Email != null)  order by ed.Delegater__r.EMail__c asc, ed.Delegater__r.User__r.Email asc';
+			    pLogVariables = 'ed.Delegatee__c in ' + currentUser.Employees__r;  
+			                
+			    // Start performance logging    
+			    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getDelegator', 2, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+			                
+                for(Employee_Delegation__c ed : [ Select ed.Delegater__r.Email_Signature_Text__c, ed.Delegater__r.EMail__c, ed.Delegater__r.First_Name__c, ed.Delegater__r.Last_Name__c, ed.Delegater__r.User__r.Email
+                                                  From Employee_Delegation__c ed 
+                                                  where 
+                                                  ed.Delegatee__c in : currentUser.Employees__r
+                                                  and (ed.Delegater__r.EMail__c != null or ed.Delegater__r.User__r.Email != null) 
+                                                  order by ed.Delegater__r.EMail__c asc, ed.Delegater__r.User__r.Email asc]){
+                                                    
+                    if(!emailEmpIdMap.containsKey((ed.Delegater__r.EMail__c != null ? ed.Delegater__r.EMail__c : ed.Delegater__r.User__r.Email))){                      
+                        delegatorList.add(ed.Delegater__r);
+                        
+                        system.debug('Delegator='+ed.Delegater__r);
+                        
+                        emailsList.add((ed.Delegater__r.EMail__c != null ? ed.Delegater__r.EMail__c : ed.Delegater__r.User__r.Email));
+                        emailEmpIdMap.put((ed.Delegater__r.EMail__c != null ? ed.Delegater__r.EMail__c : ed.Delegater__r.User__r.Email), (string) ed.Delegater__c);
+                    }
+                }
+                
+                PerformanceLogger.Stop();
+                PerformanceLogger.Save();
+            }
+        }catch(Exception exp){          
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);           
+        }
+        
+        system.debug('delegatorList='+delegatorList);
+        return (List<sObject>)delegatorList;
+    }
+    
+    /**
+     * Method:
+     * isMissingPersonalizeText
+     * 
+     * Summary:
+     * Return true if Personalize Text is missing
+     * 
+     * Parameters:
+     * @ String personalizeText
+     * @ String firstName
+     * @ String lastName
+     * @ String accountName
+     * @ String nickName
+     * @ String JpLastName
+     * @ String ticker
+     * 
+     * Return Type: 
+     * @ Boolean
+     */
+
+    private static Boolean isMissingPersonalizeText(String personalizeText, String firstName,String lastName,String accountName, String nickName , String JpLastName, String ticker){
+        return (
+            (personalizeText.toLowerCase().indexOf('%firstname%') != -1 && (firstName== ''))
+            ||
+            (personalizeText.toLowerCase().indexOf('%lastname%') != -1 && (lastName== '')) 
+            || 
+            (personalizeText.toLowerCase().indexOf('%accountname%') != -1 && (accountName== ''))
+            ||
+            (personalizeText.toLowerCase().indexOf('%nickname%') != -1 && (nickName == ''))
+            ||
+            (personalizeText.indexOf('%姓%') != -1 && (JpLastName == ''))
+            ||
+            (personalizeText.toLowerCase().indexOf('%tickers%') != -1 && (ticker == ''))
+        );
+    }
+    
+    /**
+     * Method:
+     * getERDIWithWhyInfo
+     * 
+     * Summary:
+     * This method will Insert why recommended information in ERDI and return this ERDIs
+     * Note: List of ERDI should contain parent field information as contact and rdm id.
+     * 
+     * Parameters:
+     * @ List<Email_Research_Document_Item__c> erdiList
+     * 
+     * Return Type: 
+     * @ List<SObject>
+     */
+     
+    private static List<SObject> getERDIWithWhyInfo(List<Email_Research_Document_Item__c> erdiList){
+        //TODO: currently we have used login user for bloomberg information     
+        
+        try{
+            Map<String, String> whyRecommendedMap = new Map<String, String>();
+            
+            Set<ID> contactIds = new Set<ID>(); 
+            Set<ID> rdmIds = new Set<ID>(); 
+            
+            //get contact and rdm ids
+            for(Email_Research_Document_Item__c currentERDI : erdiList){
+                contactIds.add(currentERDI.Email_Campaign_Item__r.Contact__c);
+                rdmIds.add(currentERDI.Email_Campaign_Research_Document__r.Research_Document_Metadata__c);
+            }
+            
+            //Get why recommended information
+            whyRecommendedMap = getWhyInfo(contactIds, rdmIds, DataUtil.isBloombergUser);
+            
+            //Modify existing ERDI with why recommedned information
+            for(Email_Research_Document_Item__c currentERDI : erdiList){  
+                String whyRecommended = whyRecommendedMap.get(currentERDI.Email_Campaign_Item__r.Contact__c + '-' + currentERDI.Email_Campaign_Research_Document__r.Research_Document_Metadata__c);         
+                currentERDI.Why_Recommended__c = whyRecommended != null && whyRecommended.trim().length() > 0 ? whyRecommended : 'null;null';       
+            }
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+        
+        return erdiList;
+    }   
+    
+    /**
+     * Method:
+     * getWhyInfo
+     * 
+     * Summary:
+     * This method will give information of why recommended. Why any document is added for particular contact. 
+     * Here return type will be map of (contactid-rdmid) and value will return why recommended information
+     * 
+     * Parameters:
+     * @ List<Id> contactIds
+     * @ List<Id> rdmIds
+     * @ Boolean isBloombergUser
+     * 
+     * Return Type: 
+     * @ Map<String, String>
+     */
+     
+    private static Map<String, String> getWhyInfo(Set<Id> contactIds, Set<Id> rdmIds, Boolean isBloombergUser){
+        Map<String, String> whyRecommendedMap = new Map<String, String>();
+        
+        try{
+            //Query Exising CDM 
+            for(Contact_Document_Match__c currentCDM : [Select c.Contact__c, c.Research_Document_Metadata__c, c.Ticker__c, Ticker__r.Name, c.Team__r.Research_Team__r.Name, c.Team__c, Ticker__r.Company__r.Bloomberg_Ticker__c From Contact_Document_Match__c c where c.Contact__c IN : contactIds and c.Research_Document_Metadata__c in : rdmIds]){
+                String key = currentCDM.Contact__c + '-' + currentCDM.Research_Document_Metadata__c;
+                String whyRecommended = '';
+                
+                //get Ticker info
+                if(currentCDM.Ticker__c != null && String.valueOf(currentCDM.Ticker__c).trim().length() > 0){
+                    whyRecommended = (isBloombergUser == true && currentCDM.Ticker__r.Company__r.Bloomberg_Ticker__c != null ) ? currentCDM.Ticker__r.Company__r.Bloomberg_Ticker__c : currentCDM.Ticker__r.Name;
+                    whyRecommended += ';';                     
+                }else{
+                    whyRecommended = 'null;';
+                }
+                
+                //Get team info
+                if(currentCDM.Team__c != null && String.valueOf(currentCDM.Team__c).trim().length() > 0){
+                    whyRecommended +=  currentCDM.Team__r.Research_Team__r.Name;                     
+                }else{
+                    whyRecommended += 'null';
+                }
+                                
+                whyRecommendedMap.put(key, whyRecommended);               
+            }
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+        
+        return whyRecommendedMap;
+    } 
+    
+    /**
+     * Method:
+     * getReaderships
+     * 
+     * Summary:
+     * This method return the list of readership for particular Contact and list of research document records.
+     * Also the blastmail transcation id of readership should be same as that of EQB present in ECI
+     * 
+     * Parameters:
+     * @ Set<String> rdmIDSet
+     * @ String blastmailTranscationID
+     * @ String contactID
+     * 
+     * Return Type: 
+     * @ List<sObject>
+     */
+     
+    private static List<sObject> getReaderships(Set<String> rdmIDSet, String blastmailTranscationID, String contactID){     
+                
+        try{
+            String query = '';
+            query += 'Select Research_Document_Metadata__c, Contact__c,Read_Date__c '; 
+            query += 'From Readership__c ';
+            query += 'Where Research_Document_Metadata__c IN :rdmIDSet ';
+            query += 'AND Blastmail_Transaction_ID__c =:blastmailTranscationID ';
+            query += 'AND Contact__c = :contactID order by Read_Date__c asc';
+            
+            pLogQuery = query;
+	        pLogVariables = 'Blastmail_Transaction_ID__c = ' + blastmailTranscationID + ', Contact__c = ' + contactID + ', Research_Document_Metadata__c = ' + rdmIDSet;  
+	            
+	        // Start performance logging
+	        PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getReaderships', 1, pLogQuery, PerformanceLogger.LOG_SOQL, pLogVariables);
+	        
+	        List<sObject> result = Database.query(query);
+	        
+	        PerformanceLogger.Stop();
+	        PerformanceLogger.Save();
+	        
+            return result;
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+      
+        return null;   
+    }   
+    
+    /**
+     * Method:
+     * getERDI
+     * 
+     * Summary:
+     * This method return the list of email research document item of particular List of email campaign item.
+     * 
+     * Parameters:
+     * @ List<String> eciIDList
+     * 
+     * Return Type: 
+     * @ List<sObject>
+     */
+     
+    private static List<sObject> getERDI(List<String> eciIDList){
+        transient List<Email_Research_Document_Item__c> erdiList = new List<Email_Research_Document_Item__c>();        
+        
+        try{
+        	pLogQuery = 'SELECT ID FROM Email_Research_Document_Item__c WHERE Email_Campaign_Item__c =: eciIDList ORDER BY ERDI_Sort_Order__c';
+	        pLogVariables = 'Email_Campaign_Item__c = ' + eciIDList;  
+	            
+	        // Start performance logging
+	        PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getERDI', 1, pLogQuery, PerformanceLogger.LOG_SOQL, pLogVariables);
+	        
+            for(List<Email_Research_Document_Item__c> tempList: [SELECT ID FROM Email_Research_Document_Item__c WHERE Email_Campaign_Item__c =: eciIDList ORDER BY ERDI_Sort_Order__c]){
+                erdiList.addAll(tempList);     
+            }
+            
+            PerformanceLogger.Stop();
+            PerformanceLogger.Save();
+            
+        }catch(Exception exp){
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }        
+      
+        return erdiList;   
+    }   
+    
+    /**
+     * Method:
+     * getDynamicFilterCondition
+     * 
+     * Summary:
+     * This method create and return conditon for search keyword.
+     * 
+     * Parameters:
+     * @ String keyword
+     * 
+     * Return Type: 
+     * @ String
+     */
+     
+    private static String getDynamicFilterCondition(String keyword){
+        String dynamicFilter = 'Enter Headline, Document Name, Ticker';
+        String whereQuery = ''; 
+        
+        if(keyword != dynamicFilter && keyword != ''){
+        	// 15 APR  2015    :       Dinesh M    :       QC 3439, Smart Emails: Research Picker displaying incorrect search results for Special Characters '%' and '_'
+        	keyword = keyword.replace('_','\\_').replace('%','\\%');
+        	
+            searchTickerIds = T1C_DataUtil.searchResearchDocWithTickers(keyword);
+            whereQuery = 'AND (id in : searchTickerIds OR Headline__c  LIKE \'%' +  keyword.replace('\'','\\\'').replace('’','\\\'') + '%\' OR Headline__c  LIKE \'%' +  keyword.replaceAll('\'','’') + '%\')';
+            
+            //return 'AND (id in : searchTickerIds OR Headline__c  LIKE ' + '\'' + '%' + keyword.replace('\'','\\\'')+ '%' + '\') ';
+            //return 'AND (id in : searchTickerIds OR Headline__c  LIKE \'%' +  keyword.replace('\'','\\\'') + '%\' OR Headline__c  LIKE \'%' +  keyword.replaceAll('\'','?') + '%\') ';
+        }
+        return whereQuery;
+    }
+    
+    /**
+     * Method:
+     * getPublishDateCondition
+     * 
+     * Summary:
+     * This method create and return conditon for selected date range
+     * 
+     * Parameters:
+     * @ String dateRange
+     * 
+     * Return Type: 
+     * @ String
+     */
+     
+    private static String getPublishDateCondition(String dateRange){
+        List<DateTime> dateLst = T1C_DataUtil.getPublishStartEnd(dateRange);
+    
+        if(dateLst.size() > 0){
+            selectedDate = dateLst[0];
+            return 'AND Publish_DateTime__c >= : selectedDate ';
+        }
+        
+        return '';
+    }
+    
+    /**
+     * Method:
+     * getResearchPickerPublishDateCondition
+     * 
+     * Summary:
+     * This method create and return conditon for selected date range for research picker
+     * 
+     * Parameters:
+     * @ String resultRange
+     * 
+     * Return Type: 
+     * @ String
+     */
+     
+    private static String getResearchPickerPublishDateCondition(String resultRange){
+        List<DateTime> dateLst =  DataUtil.getResearchPickerRecommendPublishStartEnd(resultRange); 
+          
+        if(dateLst.size() > 0){
+            selectedDate = dateLst[0];
+            return 'AND Publish_Datetime__c >= : selectedDate ';
+        }   
+        
+        return '';
+    }
+    
+    /**
+     * Method:
+     * getAuthorCondition
+     * 
+     * Summary:
+     * This method create and return conditon for selected author. If all authors are selected then it will not create return any conditon.
+     * 
+     * Parameters:
+     * @ String author
+     * 
+     * Return Type: 
+     * @ String
+     */
+     
+    private static String getAuthorCondition(String author){
+        if(author != 'All Analysts'){
+            autorRelatedResDocIds = T1C_DataUtil.searchResearchDocWithAuthors(author);
+            return 'AND Id in : autorRelatedResDocIds ';
+        }  
+        
+        return '';
+    }
+    
+    /**
+     * Method:
+     * getIndustryCondition
+     * 
+     * Summary:
+     * This method create and return conditon for selected industry. If all industry are selected then it will not create return any conditon.
+     * 
+     * Parameters:
+     * @ String industry
+     * 
+     * Return Type: 
+     * @ String
+     */
+     
+    private static String getIndustryCondition(String industry){
+        if(industry != 'All Industries'){
+            industryRelatedResDocIds = T1C_DataUtil.searchResearchDocWithIndustry(industry);
+            return 'AND Id in : industryRelatedResDocIds ';           
+        }
+        
+        return '';
+    }
+    
+    /**
+     * Method:
+     * getDocumentTypesCondition
+     * 
+     * Summary:
+     * This method create and return conditon for selected DocumentType. If all DocumentType are selected then it will not create return any conditon.
+     * 
+     * Parameters:
+     * @ String DocumentType
+     * 
+     * Return Type: 
+     * @ String
+     */
+     
+    private static String getDocumentTypesCondition(String DocumentType){
+        if(DocumentType != T1C_DataUtil.allDocumentTypes){
+            if(DocumentType == 'RTI'){
+                docTypes.add('tradeideas');
+            }            
+            if(DocumentType == 'CTI'){
+                docTypes.add('tradeideas');
+            }    
+            if(DocumentType == 'Models'){
+                docTypes.add('models');
+            }
+            if(DocumentType == 'Research'){
+                docTypes.add('research');
+            }
+   
+            return 'AND Document_Type__c in : docTypes '; 
+        }
+        
+        return '';
+    }
+    
+    /**
+     * Method:
+     * getRegionCondition
+     * 
+     * Summary:
+     * This method create and return conditon for selected region. If all region are selected then it will not create return any conditon.
+     * 
+     * Parameters:
+     * @ String region
+     * 
+     * Return Type: 
+     * @ String
+     */
+     
+    private static String getRegionCondition(String region){
+        if(region != DataUtil.ALL_REGION){
+            regionRelatedResDocIds = T1C_DataUtil.searchResearchDocWithRegion(region);
+            return 'AND Team_Id__c in : regionRelatedResDocIds ';
+        }
+        
+        return '';
+    }
+    
+    /**
+     * Method:
+     * sortResearchListOnContactSizeDesc
+     * 
+     * Summary:
+     * [Not In Used]This method Sort the list of research wrapper using bubble sort.
+     * 
+     * Parameters:
+     * @ List<SmartEmailWrappers.ResearchDocWrapper> resList
+     * 
+     * Return Type: 
+     * @ Void
+     */
+     
+    /*private static void sortResearchListOnContactSizeDesc(List<SmartEmailWrappers.ResearchDocWrapper> resList){
+        for(Integer index =0 ;index<resList.size();index++){
+            for(Integer nextIndex = index+1; nextIndex < resList.size();nextIndex++){           
+                if(resList[index].contactInterest < resList[nextIndex].contactInterest){ 
+                    SmartEmailWrappers.ResearchDocWrapper tmp = resList[index];   
+                    resList.set(index,resList[nextIndex]);
+                    resList.set(nextIndex,tmp); 
+                }            
+            }         
+        }
+    }*/
+
+   public static void setContactEmailSent(DataUtil.contactResearch conRes){
+     conRes.crRecipient.isEmailSent = true;  
+   }     
+
+
+  public static List<Email_Campaign_Item__c> getSelectedEmailCampaignItemsForSelectEmailsPopUp(Set<String> contactIds,String emailCampaignId){ 
+  	pLogQuery = 'Select e.Name, e.Email_Sent_TimeStamp__c, e.eMail_Sent__c, e.Subject__c, Research_Count__c,e.Email_Campaign__c, e.Contact__c , Contact__r.Account_Name__c,Contact__r.Email,Contact__r.Prefer_Business_Email__c, Missing_Personalize_Text__c,  (Select Email_Campaign_Research_Document__c From Email_Research_Document_Items__r where ( Email_Campaign_Research_Document__r.Ticker_Personalization__c != \'\' and Email_Campaign_Research_Document__r.Ticker_Personalization__c != null )limit 1 ) From Email_Campaign_Item__c e Where Email_Campaign__c =: emailCampaignIdand Contact__c in :contactIds order by e.Contact__r.Account_Name__c asc, e.Contact__r.LastName asc, e.Contact__r.FirstName asc limit :MAIL_LIMIT';
+    pLogVariables = 'Email_Campaign_Research_Document__r.Ticker_Personalization__c != \'\', Email_Campaign_Research_Document__r.Ticker_Personalization__c != null Email_Campaign__c =' + emailCampaignId + ', Contact__c in ' + contactIds;  
+                
+    // Start performance logging    
+    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getSelectedEmailCampaignItemsForSelectEmailsPopUp', 1, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);    
+    
+    List<Email_Campaign_Item__c> ecIList = new  List<Email_Campaign_Item__c> ();
+       for( List<Email_Campaign_Item__c> lst: [Select e.Name, e.Email_Sent_TimeStamp__c, e.eMail_Sent__c, e.Subject__c, Research_Count__c,
+            e.Email_Campaign__c, e.Contact__c , Contact__r.Account_Name__c,Contact__r.Email,Contact__r.Prefer_Business_Email__c, Missing_Personalize_Text__c,
+              (Select Email_Campaign_Research_Document__c From Email_Research_Document_Items__r 
+                where ( Email_Campaign_Research_Document__r.Ticker_Personalization__c != '' and 
+                        Email_Campaign_Research_Document__r.Ticker_Personalization__c != null )limit 1 )
+                                                    
+            From Email_Campaign_Item__c e
+            Where Email_Campaign__c =: emailCampaignId
+            and Contact__c in :contactIds 
+            order by e.Contact__r.Account_Name__c asc, e.Contact__r.LastName asc, e.Contact__r.FirstName asc limit :MAIL_LIMIT]){
+            
+                ecIList.addAll(lst);
+            }
+            
+    PerformanceLogger.Stop();
+    PerformanceLogger.Save();
+    return ecIList;    
+    
+  }  
+
+
+
+    public static List<Email_Campaign_Item__c> createBatchOfECIs_2(List<List<Email_Campaign_Item__c>> ecIToUpdateList_2d){
+    
+    transient List<Email_Queue_Batch__c> lstEQB = new List<Email_Queue_Batch__c>();  
+
+    Blastmail_Settings__c settings = Blastmail_Settings__c.getInstance('Default');
+
+     
+    for(List<Email_Campaign_Item__c> lstECI : ecIToUpdateList_2d){
+                             
+        lstEQB.add(new Email_Queue_Batch__c(                            
+                             Attempt_Count__c = 0,
+                             Blastmail_Transaction_Status__c = '0 - Init'
+                     ));
+
+     system.debug('lstEQBSize==='+lstEQB.size());
+    }
+   
+    
+    insert lstEQB;
+    
+    Integer index = 0;
+    List<Email_Campaign_Item__c> ecIToUpdate = new List<Email_Campaign_Item__c>();
+    for(Email_Queue_Batch__c eqb : lstEQB ){
+        
+      for(Email_Campaign_Item__c eci : ecIToUpdateList_2d[index]){
+      
+        ecI.Email_Queue_Batch__c = eqb.id; 
+
+      }
+     
+      ecIToUpdate.addAll( ecIToUpdateList_2d[index]);
+      index++;
+    }
+    
+    return ecIToUpdate;  
+    //return ecIToUpdate;          
+  }
+
+    
+//Send Email Functionality
+  public static list<sObject> sendSelectedEmails(List<Email_Campaign_Item__c> lstEmailCampaignItem){
+      transient List< List<Email_Campaign_Item__c>> ecIToUpdateList_2d = new List< List<Email_Campaign_Item__c>> ();
+      transient List<Email_Campaign_Item__c> ecIToUpdateList = new List<Email_Campaign_Item__c>();      
+          
+    try{
+      
+      Integer BatchSize = 20;
+      Integer BatchIndex= -1 ;
+      Integer count=0;
+      Blastmail_Settings__c settings = Blastmail_Settings__c.getInstance('Default');
+      if(settings != null && settings.Batch_Size__c != null){
+        BatchSize = settings.Batch_Size__c.intValue();
+      }
+      // DataUtil.contactResearch conRes;
+      //transient List<String> selectedContactIds = selectedContacts.split(',');
+     
+
+      //transient Set<String> setContactIds  = new Set<String>();
+      //setContactIds.addAll(selectedContactIds);
+
+      //transient List<DataUtil.contactResearch> lstConRes = new  List<DataUtil.contactResearch>() ;
+      //transient List<Email_Campaign_Item__c> lst_eci = getSelectedEmailCampaignItemsForSelectEmailsPopUp(setContactIds,currentEmailCampaignId);
+      
+      /*if(lst_eci.size() > 0){
+         lstConRes = createContactResearchForSelectEmails(lst_eci,currentEmailCampaignId);
+        
+      }*/
+      
+
+      transient Set<String> emailAlreadySentContacts = new Set<String>();     
+
+      
+       transient List<Contact> listOfContactToUpdate = new List<Contact>();
+       for(Email_Campaign_Item__c emailCampaignItem: lstEmailCampaignItem){
+
+            if(emailCampaignItem.eMail_Sent__c == false){ 
+            
+            //setSendEmailInCampaingsItem(conRes);
+            emailCampaignItem.eMail_Sent__c = true; 
+            emailCampaignItem.isDraft__c = false;            
+            //emailCampaignItem.Subject__c = conRes.emailSubject;    
+            emailCampaignItem.Email_Sent_TimeStamp__c  = System.now();
+            
+            if(emailCampaignItem.Introduction_Long__c == 'null'){
+                emailCampaignItem.Introduction_Long__c = ' ';
+            }
+            
+            if(emailCampaignItem.Subject__c.length() > 255){
+                emailCampaignItem.Subject__c = emailCampaignItem.Subject__c.subString(0, 255);
+            }
+            
+            
+            //Rahul A: 16 Apr. 2012: Final Email Body prepration will be in Blast mail so "Is_Email_Body_Created__c" set to false
+            emailCampaignItem.Is_Email_Body_Created__c = false;
+            ecIToUpdateList.add(emailCampaignItem);
+            count++;
+            if( count == BatchSize){
+                ecIToUpdateList_2d.add(ecIToUpdateList);
+                ecIToUpdateList= new List<Email_Campaign_Item__c>();
+                count=0;
+            }
+                     
+            //setContactEmailSent(conRes);
+
+            //Add this email campaign Item contact to update list
+            listOfContactToUpdate.add(new Contact(id = emailCampaignItem.Contact__c , Last_Emailed__c = system.now()));                                            
+          }
+
+          if(emailCampaignItem.eMail_Sent__c == true){
+            //emailAlreadySentContacts.add(conRes.crContactId);
+            
+             continue ;
+             //recipient.isEmailSent = true;
+          }
+                       
+       }
+        if( ecIToUpdateList.size()>0){
+            ecIToUpdateList_2d.add(ecIToUpdateList);
+        }
+       
+      if(ecIToUpdateList_2d.size() > 0){
+         
+        // create email queue batch for each email campaign item attached and reassign to the current list to update
+        ecIToUpdateList = createBatchOfECIs_2(ecIToUpdateList_2d);
+
+        if(ecIToUpdateList.size() > 0){       
+          update ecIToUpdateList;       
+        }
+        
+        List<Email_Campaign_Research_Document__c> ecrdToUpdate = new List<Email_Campaign_Research_Document__c>();
+        List<Email_Campaign_Research_Document__c> ecrdToUpdateList = new List<Email_Campaign_Research_Document__c>();
+        List<Email_Research_Document_Item__c> erdiToDelete = new List<Email_Research_Document_Item__c>();
+        Set<String> dupCheck = new Set<String>();
+        
+        pLogQuery = 'Select Email_Campaign_Research_Document__r.ID, Email_Campaign_Research_Document__r.Is_ForcedResetERDI_Active__c, ID, Is_Active__c,  Email_Campaign_Research_Document__c, Email_Campaign_Research_Document__r.Contacts_Associated__c, Email_Campaign_Research_Document__r.IsERDISent__c from Email_Research_Document_Item__c WHERE Email_Campaign_Item__c IN: ecIToUpdateList';
+	    pLogVariables = 'Email_Campaign_Item__c IN ' + ecIToUpdateList;  
+	                
+	    // Start performance logging    
+	    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'sendSelectedEmails', 1, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);    
+	    
+        
+        for(Email_Research_Document_Item__c currentERDI : [Select Email_Campaign_Research_Document__r.ID, Email_Campaign_Research_Document__r.Is_ForcedResetERDI_Active__c, ID, Is_Active__c,  Email_Campaign_Research_Document__c, Email_Campaign_Research_Document__r.Contacts_Associated__c, Email_Campaign_Research_Document__r.IsERDISent__c from Email_Research_Document_Item__c WHERE Email_Campaign_Item__c IN: ecIToUpdateList]){          
+            
+            if(currentERDI.Email_Campaign_Research_Document__r.Contacts_Associated__c != null){
+                currentERDI.Email_Campaign_Research_Document__r.Contacts_Associated__c--;
+            }else{
+                currentERDI.Email_Campaign_Research_Document__r.Contacts_Associated__c = 0;
+            }
+             
+            currentERDI.Email_Campaign_Research_Document__r.IsERDISent__c = true;
+            currentERDI.Email_Campaign_Research_Document__r.Is_ForcedResetERDI_Active__c = false;
+            
+            if(!dupCheck.contains(String.valueOf(currentERDI.Email_Campaign_Research_Document__r.ID))){
+                ecrdToUpdate.add(currentERDI.Email_Campaign_Research_Document__r);
+                dupCheck.add(String.valueOf(currentERDI.Email_Campaign_Research_Document__r.ID));
+            }
+            
+            if(!currentERDI.Is_Active__c){
+                erdiToDelete.add(currentERDI);
+            }
+                
+        }  
+        
+        PerformanceLogger.Stop();     
+        
+        if(ecrdToUpdate.size() > 0){ecrdToUpdateList.addAll(ecrdToUpdate);update(ecrdToUpdateList);}
+        if(erdiToDelete.size() > 0){delete erdiToDelete;}
+        update listOfContactToUpdate;
+        
+        
+      }
+      // discard memory
+      //selectedContactIds = null; 
+
+      // remove heap
+      ecIToUpdateList_2d = null; listOfContactToUpdate = null;
+      List<Email_Campaign_Item__c> nonSentECIs = new List<Email_Campaign_Item__c>();
+      List<Email_Campaign_Item__c> allECIs = new List<Email_Campaign_Item__c>();
+      
+      pLogQuery = 'SELECT Footer__c, Introduction_Long__c, Subject__c, eMail_Sent__c, Email_Campaign__r.Is_single_user_workflow__c FROM Email_Campaign_Item__c WHERE Email_Campaign__c = : lstEmailCampaignItem[0].Email_Campaign__c';
+	    pLogVariables = 'Email_Campaign__c = ' + lstEmailCampaignItem[0].Email_Campaign__c;  
+	                
+	    // Start performance logging    
+	    PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'sendSelectedEmails', 2, pLogQuery , PerformanceLogger.LOG_SOQL, pLogVariables);
+    
+      for(Email_Campaign_Item__c currentECI : [SELECT Footer__c, Introduction_Long__c, Subject__c, eMail_Sent__c, Email_Campaign__r.Is_single_user_workflow__c FROM Email_Campaign_Item__c WHERE Email_Campaign__c = : lstEmailCampaignItem[0].Email_Campaign__c]){
+        if(!currentECI.eMail_Sent__c){
+            nonSentECIs.add(currentECI);
+        }
+        
+        allECIs.add(currentECI);
+
+      }
+      
+      PerformanceLogger.Stop();
+      PerformanceLogger.Save();
+      
+      /*list<sObject> lstECINotSent = getEmailCampaignItemsByECID(string.valueOf(lstEmailCampaignItem[0].Email_Campaign__c), 'false') ;
+      if(lstECINotSent.isEmpty()){
+        EmailCampaign__c sentEC = new EmailCampaign__c(id = lstEmailCampaignItem[0].Email_Campaign__c) ; 
+        sentEC.isDraft__c = false ;
+        update sentEC ;
+      }*/
+      
+      if(nonSentECIs.isEmpty()){
+        EmailCampaign__c sentEC = new EmailCampaign__c(id = lstEmailCampaignItem[0].Email_Campaign__c) ; 
+        sentEC.isDraft__c = false ;
+        sentEC.Is_ForcedResetECI_Active__c = false ;
+        
+        if(allECIs.size() == 1 && allECIs[0].Email_Campaign__r.Is_single_user_workflow__c){
+            sentEC.Subject__c = allECIs[0].Subject__c;
+            sentEC.Introduction__c = allECIs[0].Introduction_Long__c;
+            sentEC.Footer__c = allECIs[0].Footer__c;
+        }
+        
+        update sentEC ;
+      }
+      
+    }catch(Exception exp){
+        Util.createErrorLog('Smart Email Webservice - ' + currentLoggedinUserShortID , 'SmartEmailUtil', 'sendSelectedEmails', null, true, 'Line: ' + exp.getLineNumber() + ' - ' + exp.getMessage() + '\n' + exp.getStackTraceString(), ' lstEmailCampaignItem ' + lstEmailCampaignItem);
+    }finally{
+        Util.insertErrorLogs();
+    }  
+    
+    
+    return ecIToUpdateList;
+    //return null;
+  } 
+    
+
+    public static list<sObject> updateTicerPersonalizationECI(list<Email_Campaign_Item__c> lstECI){
+        return null;
+        
+    }
+
+   
+    public static list<sObject> getECIsbyERDI(String erdiID){
+    	pLogQuery = 'select Is_Active__c, Email_Campaign_Item__c, Email_Campaign_Item__r.Contact__c, Email_Campaign_Item__r.Contact__r.FirstName, Email_Campaign_Item__r.Contact__r.LastName from Email_Research_Document_Item__c where id =: erdiID';
+        pLogVariables = 'ID = ' + erdiID;  
+            
+        // Start performance logging
+        PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getECIsbyERDI', 1, pLogQuery, PerformanceLogger.LOG_SOQL, pLogVariables);
+        
+        list<Email_Research_Document_Item__c> lstERDI = [select Is_Active__c, Email_Campaign_Item__c, Email_Campaign_Item__r.Contact__c, Email_Campaign_Item__r.Contact__r.FirstName, Email_Campaign_Item__r.Contact__r.LastName from Email_Research_Document_Item__c where id =: erdiID] ;
+        
+        PerformanceLogger.Stop();
+        PerformanceLogger.Save();
+        
+        return lstERDI ;    
+        
+    }
+    
+    
+    public static list<sObject> getAllERDIsByEC(String ecID, String ecrdID){
+        
+        system.debug('id='+ecID+' ecrdID='+ecrdID);
+        list<Email_Research_Document_Item__c> lstERDI = new list<Email_Research_Document_Item__c>();
+        
+        if(ecrdID != null && ecrdID.trim().length() > 0){
+        	pLogQuery = 'select Is_Abstract_Modified__c, is_Included__c, Email_Campaign_Item__c, Email_Campaign_Research_Document__c, id, Email_Campaign_Item__r.Contact__c, Document_Id__c, Email_Campaign_Item__r.eMail_Sent__c,Is_Added_in_Step2__c, Is_Active__c, Email_Campaign_Research_Document__r.Research_Document_Metadata__r.Short_Headline__c, Email_Campaign_Research_Document__r.Research_Document_Metadata__r.Bloomberg_Short_Headline__c from Email_Research_Document_Item__c where Email_Campaign_Item__r.Email_Campaign__c =: ecID AND Email_Campaign_Research_Document__c =: ecrdID';
+	        pLogVariables = 'Email_Campaign_Item__r.Email_Campaign__c = ' +  ecID + 'Email_Campaign_Research_Document__c = ' + ecrdID;  
+	            
+	        // Start performance logging
+	        PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getAllERDIsByEC', 1, pLogQuery, PerformanceLogger.LOG_SOQL, pLogVariables);
+	        
+            lstERDI = [select Is_Abstract_Modified__c, is_Included__c, Email_Campaign_Item__c, Email_Campaign_Research_Document__c, id, Email_Campaign_Item__r.Contact__c, Document_Id__c, Email_Campaign_Item__r.eMail_Sent__c,Is_Added_in_Step2__c, Is_Active__c, Email_Campaign_Research_Document__r.Research_Document_Metadata__r.Short_Headline__c, Email_Campaign_Research_Document__r.Research_Document_Metadata__r.Bloomberg_Short_Headline__c from Email_Research_Document_Item__c where Email_Campaign_Item__r.Email_Campaign__c =: ecID AND Email_Campaign_Research_Document__c =: ecrdID] ;
+            
+        	PerformanceLogger.Stop();
+            PerformanceLogger.Save();
+        
+        }else{
+        	pLogQuery = 'select Is_Abstract_Modified__c, is_Included__c, Email_Campaign_Item__c, Email_Campaign_Research_Document__c, id, Email_Campaign_Item__r.Contact__c, Document_Id__c, Email_Campaign_Item__r.eMail_Sent__c,Is_Added_in_Step2__c, Is_Active__c, Email_Campaign_Research_Document__r.Research_Document_Metadata__r.Short_Headline__c, Email_Campaign_Research_Document__r.Research_Document_Metadata__r.Bloomberg_Short_Headline__c from Email_Research_Document_Item__c where Email_Campaign_Item__r.Email_Campaign__c =: ecID';
+	        pLogVariables = 'Email_Campaign_Item__r.Email_Campaign__c = ' + ecID;  
+	            
+	        // Start performance logging
+	        PerformanceLogger.Start(pLogReportingRegion, pLogClassName, 'getAllERDIsByEC', 1, pLogQuery, PerformanceLogger.LOG_SOQL, pLogVariables);
+            lstERDI = [select Is_Abstract_Modified__c, is_Included__c, Email_Campaign_Item__c, Email_Campaign_Research_Document__c, id, Email_Campaign_Item__r.Contact__c, Document_Id__c, Email_Campaign_Item__r.eMail_Sent__c,Is_Added_in_Step2__c, Is_Active__c, Email_Campaign_Research_Document__r.Research_Document_Metadata__r.Short_Headline__c, Email_Campaign_Research_Document__r.Research_Document_Metadata__r.Bloomberg_Short_Headline__c from Email_Research_Document_Item__c where Email_Campaign_Item__r.Email_Campaign__c =: ecID] ;
+            
+        	PerformanceLogger.Stop();           
+            PerformanceLogger.Save();
+        }       
+        
+        //return getERDIWithWhyInfo(lstERDI);
+        return lstERDI;
+    }
+    
+    /**
+     * Method:
+     * createSmartFilterString
+     * 
+     * Summary:
+     * This method will create string of search filter criteria, in short, this method will convert id to string
+     * 
+     * Parameters:
+     * @ List<String> smartFilterIds
+     * 
+     * Return Type: 
+     * @ String
+     */
+     
+    public static String createSmartFilterString(List<String> smartFilterIds){      
+        String smartFilterNames='';        
+        
+        try{
+            Set<String> setSmartFilters = new Set<String>();
+            
+            if(smartFilterIds.size() > 0){
+    
+                for(Topic__c topic : [Select Id,Name from Topic__c where Id in : smartFilterIds]){
+                    String smartFilter = topic.Name.split(T1C_DataUtil.REGEX_TICKER_SHORTHEADLINE)[0];
+                    
+                    if(!setSmartFilters.contains(smartFilter)){
+                        setSmartFilters.add(smartFilter);
+                        smartFilterNames += smartFilter + ', ';
+                    }
+                }
+                
+                for(Research_Document_Metadata__c doc : [Select Id, Short_Headline__c, Headline__c from Research_Document_Metadata__c where id= :smartFilterIds]){
+                    
+                    if(doc.Short_Headline__c <> null && !setSmartFilters.contains(doc.Short_Headline__c)){
+                        setSmartFilters.add(doc.Short_Headline__c);
+                        smartFilterNames += doc.Short_Headline__c + ', ';
+                    }                
+                }
+                
+                for(Research_Team__c team : [Select Id,Name from Research_Team__c where Id in : smartFilterIds]){
+                    if(!setSmartFilters.contains(team.Name)){
+                        setSmartFilters.add(team.Name);
+                        smartFilterNames += team.Name + ', ';
+                    }
+                }
+        
+        		// CRMGPS-4505: Added Clause Is_Package_Deco__c=false to query
+                for(Research_Package__c rPackage : [Select Id, Package_Type__c from Research_Package__c where Id in : smartFilterIds and Is_Package_Deco__c=false]){
+                    if(!setSmartFilters.contains(rPackage.Package_Type__c)){
+                        setSmartFilters.add(rPackage.Package_Type__c);
+                        smartFilterNames += rPackage.Package_Type__c + ', ';
+                    }
+                }
+                
+                setSmartFilters.clear();
+                if(smartFilterNames <> '')
+                smartFilterNames = smartFilterNames.substring(0,smartFilterNames.LastIndexOf(','));
+            }
+        }catch(Exception exp){          
+            String error = errorFormat.replace('{MESSAGE}', exp.getMessage()).replace('{STACKTRACE}', exp.getStackTraceString());
+            throw new CustomException(error);
+        }
+        
+        return smartFilterNames;
+    }
+    
+   /**
+     * Method:
+     * getSuggestions-CRMGPS-4808.
+     * 
+     * Summary:
+     * this method is used to give list of recommended research/cdm for selected contactids and interestids.
+     * 
+     * Parameters:
+     * @ List<Id> contactIds, List<String> selectedValues
+     * 
+     * Return Type: 
+     * @ List<sObject>
+     */
+    
+    
+    public static List<sObject> getSuggestions(set<Id> contactIds, List<String> selectedValues){
+    	
+    	T1C_SmartEmailStart sEs= new T1C_SmartEmailStart();
+    	
+    	return sEs.getContactDocMatchList(contactIds,selectedValues);
+    }
+}
